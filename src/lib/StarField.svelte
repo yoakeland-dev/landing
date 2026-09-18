@@ -71,6 +71,7 @@
       uniform float u_seed;
       uniform sampler2D u_starTex;
       uniform float u_desktop;
+      uniform vec2 u_mouse;
       const float u_falloffPower = ${falloffPower.toFixed(2)};
 
       float hash(vec2 p) {
@@ -152,6 +153,12 @@
 
         float edgeDist = abs(v_uv.x - 0.5) * 2.0;
         vec4 finalColor = renderDrip(cellId, cellUv, gridCount, distFromEdge, edgeDist);
+
+        float mouseDist = length(v_uv * u_resolution - u_mouse);
+        float mouseGlow = smoothstep(140.0, 0.0, mouseDist);
+        finalColor.rgb += finalColor.rgb * mouseGlow * 1.5;
+        finalColor.a = clamp(finalColor.a + finalColor.a * mouseGlow * 0.6, 0.0, 1.0);
+
         if (finalColor.a < 0.001) discard;
         gl_FragColor = finalColor;
       }
@@ -193,7 +200,19 @@
     const timeLocation = gl.getUniformLocation(program, "u_time");
     const seedLocation = gl.getUniformLocation(program, "u_seed");
     const desktopLocation = gl.getUniformLocation(program, "u_desktop");
+    const mouseLocation = gl.getUniformLocation(program, "u_mouse");
     gl.uniform1f(seedLocation, Math.random() * 100.0);
+
+    let mouseX = -10000;
+    let mouseY = -10000;
+    function handlePointerMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      mouseX = e.clientX - rect.left;
+      mouseY = e.clientY - rect.top;
+    }
+    if (mode === "bottom") {
+      window.addEventListener("pointermove", handlePointerMove);
+    }
 
     function resize() {
       const rect = canvas.getBoundingClientRect();
@@ -215,6 +234,7 @@
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.uniform1f(timeLocation, time * 0.001);
+      gl.uniform2f(mouseLocation, mouseX, mouseY);
       gl.drawArrays(gl.TRIANGLES, 0, 6);
       raf = requestAnimationFrame(render);
     }
@@ -223,6 +243,9 @@
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      if (mode === "bottom") {
+        window.removeEventListener("pointermove", handlePointerMove);
+      }
     };
   });
 </script>
