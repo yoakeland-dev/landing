@@ -1042,6 +1042,12 @@ h1 {
     color: #ededec;
 }
 
+.chip-tag {
+    font-size: 10px;
+    color: #d8a56f;
+    opacity: 0.85;
+}
+
 .detect-dot {
     width: 5px;
     height: 5px;

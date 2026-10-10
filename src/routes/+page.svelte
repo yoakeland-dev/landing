@@ -18,6 +18,19 @@
   import nvidiaIcon from "@lobehub/icons-static-svg/icons/nvidia.svg?url";
   import ollamaIcon from "@lobehub/icons-static-svg/icons/ollama.svg?url";
 
+  import claudeCodeIcon from "@lobehub/icons-static-svg/icons/claudecode.svg?url";
+  import codexIcon from "@lobehub/icons-static-svg/icons/codex.svg?url";
+  import cursorIcon from "@lobehub/icons-static-svg/icons/cursor.svg?url";
+  import opencodeIcon from "@lobehub/icons-static-svg/icons/opencode.svg?url";
+  import geminiCliIcon from "@lobehub/icons-static-svg/icons/geminicli.svg?url";
+  import grokIcon from "@lobehub/icons-static-svg/icons/grok.svg?url";
+  import ampIcon from "@lobehub/icons-static-svg/icons/amp.svg?url";
+
+  import claudeCodeIconColor from "@lobehub/icons-static-svg/icons/claudecode-color.svg?url";
+  import codexIconColor from "@lobehub/icons-static-svg/icons/codex-color.svg?url";
+  import geminiCliIconColor from "@lobehub/icons-static-svg/icons/geminicli-color.svg?url";
+  import ampIconColor from "@lobehub/icons-static-svg/icons/amp-color.svg?url";
+
   import deepseekIconColor from "@lobehub/icons-static-svg/icons/deepseek-color.svg?url";
   import geminiIconColor from "@lobehub/icons-static-svg/icons/gemini-color.svg?url";
   import mistralIconColor from "@lobehub/icons-static-svg/icons/mistral-color.svg?url";
@@ -34,12 +47,47 @@
 
   const labels = { mac: "macOS", windows: "Windows", linux: "Linux" };
 
+  const WEB_URL = "https://app.yoake.land";
+  const REPO = "https://github.com/yoakeland-dev/yoakeland";
+  // Per-OS installer pattern; arm64 first on mac since most Macs are Apple silicon.
+  const installers = {
+    mac: [/arm64.*\.dmg$/i, /\.dmg$/i],
+    windows: [/\.exe$/i],
+    linux: [/\.AppImage$/i],
+  };
+  /** Latest-release asset URL per OS; empty until fetched, then the releases page is the fallback. */
+  let dl = $state({});
+  // Every release is a prerelease, which GitHub's /releases/latest ignores, so use the list.
+  const downloadUrl = (id) => dl[id] ?? `${REPO}/releases`;
+  const experimental = { mac: true, windows: true };
+
+  async function loadRelease() {
+    try {
+      const res = await fetch(
+        "https://api.github.com/repos/yoakeland-dev/yoakeland/releases?per_page=1",
+      );
+      if (!res.ok) return;
+      const [release] = await res.json();
+      const assets = release?.assets ?? [];
+      for (const [id, patterns] of Object.entries(installers)) {
+        for (const re of patterns) {
+          const a = assets.find((x) => re.test(x.name));
+          if (a) {
+            dl[id] = a.browser_download_url;
+            break;
+          }
+        }
+      }
+    } catch {}
+  }
+
   onMount(() => {
     const platform = navigator.userAgent;
     if (/Android|iPhone|iPad|iPod/.test(platform)) os = "mobile";
     else if (/Win/.test(platform)) os = "windows";
     else if (/Linux|X11/.test(platform)) os = "linux";
     else os = "mac";
+    loadRelease();
   });
 
   function roundedPolygonPath(points, radius) {
@@ -304,6 +352,101 @@
       daemonLog: "auth: secure UI keyring · Kimi agentic memory attached",
       local: false,
     },
+    {
+      id: "claudecode",
+      label: "Claude Code",
+      org: "Anthropic · your subscription",
+      icon: claudeCodeIcon,
+      colorIcon: claudeCodeIconColor,
+      color: "#D97757",
+      endpoint: "claude (your installed CLI)",
+      keySource: "Your existing Claude login",
+      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
+      runtimeNote: "your subscription · no key stored",
+      daemonLog: "agent: claude · own sandbox · permissions bridged",
+      local: true,
+    },
+    {
+      id: "codex",
+      label: "Codex",
+      org: "OpenAI · your subscription",
+      icon: codexIcon,
+      colorIcon: codexIconColor,
+      color: "#7A9DFF",
+      endpoint: "codex (your installed CLI)",
+      keySource: "Your existing ChatGPT login",
+      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
+      runtimeNote: "your subscription · no key stored",
+      daemonLog: "agent: codex · own sandbox · permissions bridged",
+      local: true,
+    },
+    {
+      id: "cursor",
+      label: "Cursor",
+      org: "Cursor · ACP agent",
+      icon: cursorIcon,
+      color: "#E7E7E7",
+      endpoint: "cursor-agent (ACP)",
+      keySource: "Your existing Cursor login",
+      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
+      runtimeNote: "your subscription · no key stored",
+      daemonLog: "agent: cursor · ACP session attached",
+      local: true,
+    },
+    {
+      id: "opencode",
+      label: "OpenCode",
+      org: "OpenCode · ACP agent",
+      icon: opencodeIcon,
+      color: "#E7E7E7",
+      endpoint: "opencode (ACP)",
+      keySource: "Whatever OpenCode is configured with",
+      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
+      runtimeNote: "your subscription · no key stored",
+      daemonLog: "agent: opencode · ACP session attached",
+      local: true,
+    },
+    {
+      id: "geminicli",
+      label: "Gemini CLI",
+      org: "Google · ACP agent",
+      icon: geminiCliIcon,
+      colorIcon: geminiCliIconColor,
+      color: "#8E75B2",
+      endpoint: "gemini (ACP)",
+      keySource: "Your existing Google login",
+      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
+      runtimeNote: "your subscription · no key stored",
+      daemonLog: "agent: gemini · ACP session attached",
+      local: true,
+    },
+    {
+      id: "grok",
+      label: "Grok",
+      org: "xAI · ACP agent",
+      icon: grokIcon,
+      color: "#E7E7E7",
+      endpoint: "grok (ACP)",
+      keySource: "Your existing xAI login",
+      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
+      runtimeNote: "your subscription · no key stored",
+      daemonLog: "agent: grok · ACP session attached",
+      local: true,
+    },
+    {
+      id: "amp",
+      label: "Amp",
+      org: "Sourcegraph · your subscription",
+      icon: ampIcon,
+      colorIcon: ampIconColor,
+      color: "#F34E3F",
+      endpoint: "amp (your installed CLI)",
+      keySource: "Your existing Amp login",
+      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
+      runtimeNote: "your subscription · no key stored",
+      daemonLog: "agent: amp · own sandbox",
+      local: true,
+    },
   ];
 
   /** @type {"mac" | "windows" | "linux" | null} */
@@ -428,7 +571,7 @@
         class="btn"
         class:primary={os !== "mobile"}
         class:disabled={os === "mobile"}
-        href={os === "mobile" ? undefined : "#"}
+        href={os === "mobile" ? undefined : downloadUrl(os)}
         aria-disabled={os === "mobile"}
         title={os === "mobile"
           ? "Unavailable on mobile — use the web version"
@@ -442,12 +585,13 @@
             : `Download for ${labels[os]}`}
         </span>
       </a>
-      <a class="btn" class:primary={os === "mobile"} href="#"
+      <a class="btn" class:primary={os === "mobile"} href={WEB_URL}
         ><span class="mono">Open on web</span></a
       >
     </div>
     <p class="cta-caption mono">
-      You'll need to bring your own server for the web client.
+      The web client and paired phones talk straight to a yoakeland you run. No cloud relay.{#if experimental[os]}
+        The {labels[os]} build is experimental.{/if}
     </p>
   </div>
 
@@ -475,11 +619,11 @@
       <p>
         Point it at a folder and let it breathe. No onboarding questionnaires,
         no telemetry handshakes, no browser tabs asking for an email before
-        you've written a single line.
+        you've written a single line. Same app on macOS, Windows and Linux.
       </p>
       <p class="how-subtext">
-        Run <span class="mono">./yoakeland -project .</span> when you sit down at
-        your desk. It attaches to a local socket and waits for you.
+        The app starts the daemon for you, or run <span class="mono">./yoakeland</span>
+        yourself on any box. It opens a local socket and waits for you.
       </p>
     </div>
 
@@ -568,10 +712,11 @@
     <div class="byo-header">
       <h2>Any model. Same handshake.</h2>
       <p>
-        Weights on your local GPU or a frontier model across the wire—to
-        yoakeland, it’s all the same streaming target. Set your keys in the UI
-        or pull from environment variables. Hot-swap models mid-session with
-        zero daemon restarts.
+        Weights on your local GPU, a frontier API, or the coding agent you
+        already pay for (Claude Code, Codex, Cursor, OpenCode and friends).
+        They all run under the same permissions, snapshots and history. Set
+        keys in the app or pull them from environment variables, and switch
+        models per chat.
       </p>
     </div>
 
@@ -703,10 +848,10 @@
         >
         <span class="mono tile-label">sandboxed</span>
         <div class="tile-stack">
-          <span class="stack-rung">Level 1: Bubblewrap (unprivileged)</span>
-          <span class="stack-rung">Linux namespaces (fallback)</span>
+          <span class="stack-rung">Linux: Bubblewrap, then namespaces</span>
+          <span class="stack-rung">macOS: Seatbelt (sandbox-exec)</span>
           <span class="stack-rung warn"
-            >Unconfined (fallback, logged warning)</span
+            >Windows: resource caps only, no filesystem isolation</span
           >
         </div>
         <div class="tile-boundary mono">
@@ -715,8 +860,9 @@
           <span class="line warn">CHAINED: ; && | $() ` → ask first</span>
         </div>
         <p class="tile-desc tile-caption">
-          It can touch your project files, but it can never wander into your
-          home directory.
+          Shell commands run in the strongest sandbox your OS offers. Where
+          there isn't one, you get a red warning, and one setting turns bash
+          off entirely.
         </p>
       </div>
 
@@ -737,9 +883,9 @@
         >
         <span class="mono tile-label">multi-device</span>
         <p class="tile-desc">
-          Start a task on your desktop, keep talking to it from a paired phone
-          or laptop. One bearer token plus a self-signed CA, copied over once —
-          no account, no cloud relay in between.
+          Start a task on your desktop, keep talking to it from your phone or
+          another laptop. Scan a QR code to pair, or hand each person their
+          own token. No account, no cloud relay in between.
         </p>
       </div>
 
@@ -759,9 +905,9 @@
         <span class="mono tile-label">tracked spend</span>
         <p class="tile-desc">
           Priced straight off your provider's own rate card — zero markup, no
-          bundled credits. Route to your local GPU instead and it's a flat <span
-            class="mono">$0.00</span
-          >.
+          bundled credits. Set a per-chat spend cap and a turn pauses to ask
+          before it runs past it. Route to your local GPU instead and it's a
+          flat <span class="mono">$0.00</span>.
         </p>
       </div>
 
@@ -809,6 +955,47 @@
         </p>
       </div>
 
+      <div class="tile">
+        <svg
+          class="tile-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><path d="M9 4v4m6-4v4M7 8h10v4a5 5 0 0 1-10 0V8m5 9v3" /></svg
+        >
+        <span class="mono tile-label">extensible</span>
+        <p class="tile-desc">
+          Plug in any <span class="mono">MCP</span> server, or reuse the
+          <span class="mono">.mcp.json</span> and skill folders you already
+          have from other tools. Every tool call still asks first.
+        </p>
+      </div>
+
+      <div class="tile tile-wide">
+        <svg
+          class="tile-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          ><rect x="3" y="4" width="18" height="16" rx="2" /><path
+            d="M7 10l3 2l-3 2m5 0h4"
+          /></svg
+        >
+        <span class="mono tile-label">more than a chat box</span>
+        <p class="tile-desc">
+          Agents get a real terminal you can watch and type into, for dev
+          servers and long builds. They can drive a browser panel to check
+          their own work, search the web, hand side tasks to read-only helper
+          agents, and ask you a question mid-turn instead of guessing.
+        </p>
+      </div>
+
       <div class="tile tile-full">
         <div class="tile-header">
           <div class="tile-header-left">
@@ -833,15 +1020,15 @@
           <div class="gate-col">
             <span class="gate-title">normal mode</span>
             <span class="gate-item mono ok"
-              >auto: file_read · ls · pwd · git status/diff</span
+              >auto: file_read · search</span
             >
             <span class="gate-item mono warn"
-              >ask: file_write · file_edit · bash</span
+              >ask: file_write · file_edit · bash · web_fetch · mcp</span
             >
           </div>
           <div class="gate-col">
             <span class="gate-title">plan mode</span>
-            <span class="gate-item mono ok">only: file_read</span>
+            <span class="gate-item mono ok">only: file_read · search · write_plan</span>
             <span class="gate-item"
               >everything else isn't offered — not denied, never defined</span
             >
@@ -860,15 +1047,15 @@
   </svg>
 
   <section class="download" id="download">
-    <p class="download-statement">One binary. Windowed or headless.</p>
+    <p class="download-statement">One daemon. Desktop, phone, or headless.</p>
 
     <div class="download-main">
       {#if os === "mobile"}
-        <a class="btn primary download-btn" href="#"
+        <a class="btn primary download-btn" href={WEB_URL}
           ><span class="mono">Open on web</span></a
         >
       {:else}
-        <a class="btn primary download-btn" href="#"
+        <a class="btn primary download-btn" href={downloadUrl(effectiveOs)}
           >{@render osIcon(effectiveOs)}<span class="mono"
             >Download for {labels[effectiveOs]}</span
           ></a
@@ -886,6 +1073,7 @@
           >
             {@render osIcon(p.id)}
             <span class="mono">{p.label}</span>
+            {#if experimental[p.id]}<span class="mono chip-tag">experimental</span>{/if}
             {#if os === p.id}<span class="detect-dot" aria-hidden="true"
               ></span><span class="sr-only">(detected)</span>{/if}
           </button>
@@ -903,7 +1091,7 @@
     <p class="footer-statement">Run it on your machine.</p>
     <div class="footer-strip">
       <div class="footer-links">
-        <a href="#">GitHub</a>
+        <a href="https://github.com/yoakeland-dev">GitHub</a>
         <a href="#">License</a>
       </div>
       <span class="mono footer-copyright">yoakeland &copy; 2026</span>
