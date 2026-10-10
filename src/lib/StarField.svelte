@@ -214,6 +214,24 @@
       window.addEventListener("pointermove", handlePointerMove);
     }
 
+    let raf;
+    let running = false;
+    let lastTime = 0;
+
+    function draw(time) {
+      lastTime = time;
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.uniform1f(timeLocation, time * 0.001);
+      gl.uniform2f(mouseLocation, mouseX, mouseY);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    function loop(time) {
+      draw(time);
+      raf = requestAnimationFrame(loop);
+    }
+
     function resize() {
       const rect = canvas.getBoundingClientRect();
       canvas.width = rect.width;
@@ -221,27 +239,37 @@
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(resLocation, canvas.width, canvas.height);
       gl.uniform1f(desktopLocation, window.innerWidth >= 900 ? 1.0 : 0.0);
+      // Setting canvas.width/height clears the canvas, so repaint the single
+      // static frame when the animation loop isn't running.
+      if (!running) draw(lastTime);
     }
+
+    // Reduced motion gets one static frame instead of an animation loop.
+    const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    function applyMotionPreference() {
+      cancelAnimationFrame(raf);
+      if (motionQuery.matches) {
+        running = false;
+        draw(lastTime);
+      } else {
+        running = true;
+        raf = requestAnimationFrame(loop);
+      }
+    }
+    motionQuery.addEventListener("change", applyMotionPreference);
+
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
-    resize();
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-    let raf;
-    function render(time) {
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.uniform1f(timeLocation, time * 0.001);
-      gl.uniform2f(mouseLocation, mouseX, mouseY);
-      gl.drawArrays(gl.TRIANGLES, 0, 6);
-      raf = requestAnimationFrame(render);
-    }
-    raf = requestAnimationFrame(render);
+    resize();
+    applyMotionPreference();
 
     return () => {
       cancelAnimationFrame(raf);
+      motionQuery.removeEventListener("change", applyMotionPreference);
       ro.disconnect();
       if (mode === "bottom") {
         window.removeEventListener("pointermove", handlePointerMove);

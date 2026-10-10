@@ -70,6 +70,19 @@ body {
     letter-spacing: 0.02em;
 }
 
+/* Visually hidden, still exposed to assistive tech. */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 .brand {
     display: flex;
     align-items: center;
@@ -184,6 +197,9 @@ h1 {
     left: 50%;
     transform: translate(-50%, -50%);
     width: 78%;
+    /* height:auto keeps the width/height attributes as an aspect-ratio hint
+       rather than a fixed pixel height. */
+    height: auto;
     border-radius: 8px;
     box-shadow: 0 40px 80px rgba(0, 0, 0, 0.5);
 }
@@ -1173,5 +1189,7 @@ footer {
     .app-shot {
         top: 0;
         transform: translate(-50%, -24px);
+        /* The mobile <source> has a different ratio than the desktop shot. */
+        aspect-ratio: 900 / 734;
     }
 }

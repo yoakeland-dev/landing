@@ -452,10 +452,16 @@
   </div>
 
   <div class="showcase">
-    <img class="bg" src="/background.png" alt="" />
+    <img class="bg" src="/background.png" alt="" width="1768" height="890" />
     <picture>
       <source media="(max-width: 600px)" srcset="/app-screenshot-mobile.png" />
-      <img class="app-shot" src="/app-screenshot.png" alt="yoakeland app" />
+      <img
+        class="app-shot"
+        src="/app-screenshot.png"
+        alt="yoakeland app"
+        width="1130"
+        height="698"
+      />
     </picture>
   </div>
 
@@ -875,12 +881,13 @@
             type="button"
             class="platform-chip"
             class:active={effectiveOs === p.id}
+            aria-pressed={effectiveOs === p.id}
             onclick={() => (dlOs = p.id)}
           >
             {@render osIcon(p.id)}
             <span class="mono">{p.label}</span>
             {#if os === p.id}<span class="detect-dot" aria-hidden="true"
-              ></span>{/if}
+              ></span><span class="sr-only">(detected)</span>{/if}
           </button>
         {/each}
       </div>
