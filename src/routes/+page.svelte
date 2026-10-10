@@ -83,7 +83,7 @@
 
   onMount(() => {
     const platform = navigator.userAgent;
-    if (/Android|iPhone|iPad|iPod/.test(platform)) os = "mobile";
+    if (/Android|iPhone|iPad|iPod/.test(platform) || (/Macintosh/.test(platform) && navigator.maxTouchPoints > 1)) os = "mobile";
     else if (/Win/.test(platform)) os = "windows";
     else if (/Linux|X11/.test(platform)) os = "linux";
     else os = "mac";
@@ -165,7 +165,7 @@
       color: "#D97757",
       endpoint: "api.anthropic.com/v1/messages",
       keySource: "UI Keyring (or $ANTHROPIC_API_KEY)",
-      protocol: "Anthropic Messages API · Prompt Caching (90% saved)",
+      protocol: "Anthropic Messages API · prompt caching",
       runtimeNote: "direct TLS · thinking budget enabled",
       daemonLog:
         "auth: secure UI keyring · cache read hit · thinking budget 8k",
@@ -174,14 +174,14 @@
     {
       id: "ollama",
       label: "Ollama",
-      org: "Local Hardware Runtime",
+      org: "Runs on your own hardware",
       icon: ollamaIcon,
       color: "#E7E7E7",
       endpoint: "http://localhost:11434",
       keySource: "None (offline local runner)",
       protocol: "Native Ollama API & OpenAI-compatible endpoints",
-      runtimeNote: "on-metal VRAM · zero network egress",
-      daemonLog: "runtime: localhost:11434 · metal m-series gpu · zero egress",
+      runtimeNote: "runs on localhost · no cloud calls",
+      daemonLog: "runtime: localhost:11434 · local GPU · no cloud calls",
       local: true,
     },
     {
@@ -193,9 +193,9 @@
       color: "#5786FE",
       endpoint: "api.deepseek.com/v1/chat/completions",
       keySource: "UI Keyring (or $DEEPSEEK_API_KEY)",
-      protocol: "DeepSeek MoE 671B · Native <think> reasoning tokens",
-      runtimeNote: "direct TLS · dynamic context caching",
-      daemonLog: "auth: secure UI keyring · streaming native <think> trace",
+      protocol: "DeepSeek API · streams <think> reasoning tokens",
+      runtimeNote: "direct TLS · context caching",
+      daemonLog: "auth: secure UI keyring · streaming <think> trace",
       local: false,
     },
     {
@@ -206,7 +206,7 @@
       color: "#10A37F",
       endpoint: "api.openai.com/v1/chat/completions",
       keySource: "UI Keyring (or $OPENAI_API_KEY)",
-      protocol: "OpenAI Wire Protocol · Structured Outputs & Tool Calling",
+      protocol: "OpenAI chat completions · structured outputs and tool calling",
       runtimeNote: "direct TLS · reasoning effort parameter",
       daemonLog: "auth: secure UI keyring · reasoning effort: medium",
       local: false,
@@ -220,10 +220,10 @@
       color: "#FA520F",
       endpoint: "api.mistral.ai/v1/fim/completions",
       keySource: "UI Keyring (or $MISTRAL_API_KEY)",
-      protocol: "Fill-in-the-Middle (FIM) · Prefix / Suffix AST completion",
-      runtimeNote: "direct TLS · sub-second European TTFT",
+      protocol: "Fill-in-the-middle (FIM) · prefix and suffix completion",
+      runtimeNote: "direct TLS · European provider",
       daemonLog:
-        "auth: secure UI keyring · FIM buffer active · low-latency stream",
+        "auth: secure UI keyring · FIM buffer active · streaming",
       local: false,
     },
     {
@@ -236,8 +236,8 @@
       endpoint: "dashscope.aliyuncs.com/compatible-mode/v1",
       keySource: "UI Keyring (or $DASHSCOPE_API_KEY)",
       protocol: "DashScope Model Studio · 128K context window",
-      runtimeNote: "direct TLS · SOTA open code architecture",
-      daemonLog: "auth: secure UI keyring · 128k context buffer initialized",
+      runtimeNote: "direct TLS · OpenAI-compatible mode",
+      daemonLog: "auth: secure UI keyring · 128k context window",
       local: false,
     },
     {
@@ -249,9 +249,9 @@
       color: "#8E75B2",
       endpoint: "generativelanguage.googleapis.com/v1beta",
       keySource: "UI Keyring (or $GEMINI_API_KEY)",
-      protocol: "Google AI Studio · 1M-2M context window · native multimodal",
-      runtimeNote: "direct TLS · speculative decoding engine",
-      daemonLog: "auth: secure UI keyring · 1M context window allocated",
+      protocol: "Google AI Studio · long context · multimodal input",
+      runtimeNote: "direct TLS · Google-hosted API",
+      daemonLog: "auth: secure UI keyring · long context window",
       local: false,
     },
     {
@@ -263,8 +263,8 @@
       color: "#c8ff00",
       endpoint: "openrouter.ai/api/v1",
       keySource: "UI Keyring (or $OPENROUTER_API_KEY)",
-      protocol: "Unified OpenAI Meta-Router with latency fallback ranking",
-      runtimeNote: "direct TLS · single key gateway balance",
+      protocol: "OpenAI-compatible router · one key for many providers",
+      runtimeNote: "direct TLS · one key for many models",
       daemonLog:
         "auth: secure UI keyring · fallback chain: anthropic -> bedrock",
       local: false,
@@ -278,9 +278,9 @@
       color: "#6c90b9",
       endpoint: "bedrock-runtime.{region}.amazonaws.com",
       keySource: "AWS IAM / SigV4 Chain / UI",
-      protocol: "AWS SigV4 HMAC-SHA256 · Private VPC & GovCloud routes",
-      runtimeNote: "direct TLS · zero data retention agreement",
-      daemonLog: "auth: AWS credential chain (us-east-1) · zero retention",
+      protocol: "AWS SigV4 request signing",
+      runtimeNote: "direct TLS · your AWS account",
+      daemonLog: "auth: AWS credential chain (us-east-1)",
       local: false,
     },
     {
@@ -293,8 +293,8 @@
       endpoint: "localhost:8000/v1 (vLLM / llama.cpp)",
       keySource: "Local vLLM / self-hosted endpoint",
       protocol: "RoPE 128K context · Grouped-Query Attention (GQA)",
-      runtimeNote: "on-metal / private serverless endpoint",
-      daemonLog: "runtime: private vLLM instance · local KV-cache bound",
+      runtimeNote: "your own server or endpoint",
+      daemonLog: "runtime: your vLLM or llama.cpp server",
       local: false,
     },
     {
@@ -306,9 +306,9 @@
       color: "#F38020",
       endpoint: "api.cloudflare.com/client/v4/accounts/{id}/ai/v1",
       keySource: "UI Keyring (or $CLOUDFLARE_API_TOKEN)",
-      protocol: "Cloudflare Workers AI REST · 300+ edge city nodes",
-      runtimeNote: "direct TLS · anycast global edge routing",
-      daemonLog: "auth: Cloudflare API token · routed via nearest edge pop",
+      protocol: "Cloudflare Workers AI REST API",
+      runtimeNote: "direct TLS · Cloudflare edge network",
+      daemonLog: "auth: Cloudflare API token · Cloudflare edge network",
       local: false,
     },
     {
@@ -321,7 +321,7 @@
       endpoint: "api-inference.huggingface.co/v1",
       keySource: "UI Keyring (or $HF_TOKEN)",
       protocol: "Text Generation Inference (TGI) · Dedicated Endpoints",
-      runtimeNote: "direct TLS · open model hub router",
+      runtimeNote: "direct TLS · Hugging Face model hub",
       daemonLog: "auth: HF user token · TGI streaming container attached",
       local: false,
     },
@@ -334,9 +334,9 @@
       color: "#76B900",
       endpoint: "integrate.api.nvidia.com/v1",
       keySource: "UI Keyring (or $NVIDIA_API_KEY)",
-      protocol: "NVIDIA NIM Microservice · TensorRT-LLM FP8/FP4 kernels",
-      runtimeNote: "direct TLS · optimized GPU inference cluster",
-      daemonLog: "auth: NVIDIA API token · TensorRT-LLM optimized stream",
+      protocol: "NVIDIA NIM microservice API",
+      runtimeNote: "direct TLS · hosted NVIDIA endpoint",
+      daemonLog: "auth: NVIDIA API key · streaming",
       local: false,
     },
     {
@@ -347,9 +347,9 @@
       color: "#E7E7E7",
       endpoint: "api.moonshot.cn/v1",
       keySource: "UI Keyring (or $MOONSHOT_API_KEY)",
-      protocol: "Moonshot Open Platform · Long-horizon document agent",
-      runtimeNote: "direct TLS · extended context memory",
-      daemonLog: "auth: secure UI keyring · Kimi agentic memory attached",
+      protocol: "Moonshot Open Platform API",
+      runtimeNote: "direct TLS · long context",
+      daemonLog: "auth: secure UI keyring · Kimi API",
       local: false,
     },
     {
@@ -574,7 +574,7 @@
         href={os === "mobile" ? undefined : downloadUrl(os)}
         aria-disabled={os === "mobile"}
         title={os === "mobile"
-          ? "Unavailable on mobile — use the web version"
+          ? "Not available on mobile. Use the web version."
           : undefined}
         onclick={os === "mobile" ? (e) => e.preventDefault() : undefined}
       >
@@ -590,7 +590,7 @@
       >
     </div>
     <p class="cta-caption mono">
-      The web client and paired phones talk straight to a yoakeland you run. No cloud relay.{#if experimental[os]}
+      The web app and paired phones connect directly to the yoakeland you run. No cloud relay.{#if experimental[os]}
         The {labels[os]} build is experimental.{/if}
     </p>
   </div>
@@ -617,13 +617,10 @@
     <div class="how-content">
       <h2>No ritual.</h2>
       <p>
-        Point it at a folder and let it breathe. No onboarding questionnaires,
-        no telemetry handshakes, no browser tabs asking for an email before
-        you've written a single line. Same app on macOS, Windows and Linux.
+        Point it at a folder and start working. No onboarding questions, no telemetry handshakes, no sign-up page asking for your email before your first message. The same app runs on macOS, Windows, and Linux.
       </p>
       <p class="how-subtext">
-        The app starts the daemon for you, or run <span class="mono">./yoakeland</span>
-        yourself on any box. It opens a local socket and waits for you.
+        The app starts the daemon for you. You can also run <span class="mono">./yoakeland</span> yourself on any machine. It opens a local socket and waits for connections.
       </p>
     </div>
 
@@ -700,7 +697,7 @@
           <img
             class="statement-shot"
             src="/it-works-screenshot.png"
-            alt="yoakeland mid-session, already working"
+            alt="yoakeland mid-session"
           />
         </div>
       </div>
@@ -710,13 +707,9 @@
   <!-- Remade BYO Section: Two Distinct Side-by-Side Rectangles -->
   <section class="byo" id="byo">
     <div class="byo-header">
-      <h2>Any model. Same handshake.</h2>
+      <h2>Any model, same rules.</h2>
       <p>
-        Weights on your local GPU, a frontier API, or the coding agent you
-        already pay for (Claude Code, Codex, Cursor, OpenCode and friends).
-        They all run under the same permissions, snapshots and history. Set
-        keys in the app or pull them from environment variables, and switch
-        models per chat.
+        Run weights on your local GPU, call a hosted API, or use a coding agent you already pay for (Claude Code, Codex, Cursor, OpenCode, and others). All of them follow the same permissions, snapshots, and history. Set keys in the app or read them from environment variables. Switch models per chat.
       </p>
     </div>
 
@@ -860,9 +853,7 @@
           <span class="line warn">CHAINED: ; && | $() ` → ask first</span>
         </div>
         <p class="tile-desc tile-caption">
-          Shell commands run in the strongest sandbox your OS offers. Where
-          there isn't one, you get a red warning, and one setting turns bash
-          off entirely.
+          Shell commands run in the strongest sandbox your OS supports. Where there isn't one, you get a red warning, and one setting turns bash off entirely.
         </p>
       </div>
 
@@ -883,9 +874,7 @@
         >
         <span class="mono tile-label">multi-device</span>
         <p class="tile-desc">
-          Start a task on your desktop, keep talking to it from your phone or
-          another laptop. Scan a QR code to pair, or hand each person their
-          own token. No account, no cloud relay in between.
+          Start a task on your desktop and pick it up on your phone or another laptop. Pair by scanning a QR code, or give each person their own token. No account and no cloud relay in between.
         </p>
       </div>
 
@@ -904,10 +893,7 @@
         >
         <span class="mono tile-label">tracked spend</span>
         <p class="tile-desc">
-          Priced straight off your provider's own rate card — zero markup, no
-          bundled credits. Set a per-chat spend cap and a turn pauses to ask
-          before it runs past it. Route to your local GPU instead and it's a
-          flat <span class="mono">$0.00</span>.
+          Priced from your provider's own rate card, with no markup and no bundled credits. Set a spend cap per chat, and a turn pauses to ask before it goes over. Run on your local GPU instead and the cost is <span class="mono">$0.00</span>.
         </p>
       </div>
 
@@ -926,11 +912,7 @@
         >
         <span class="mono tile-label">undoable</span>
         <p class="tile-desc">
-          Every write gets a snapshot first. If an agent breaks something four
-          edits deep, one <span class="mono">restore</span> rolls the whole
-          working tree back — no manual <span class="mono">git</span> archaeology.
-          Files it created get removed too, not just edits undone, and permissions
-          come back exactly as they were.
+          Every write saves a snapshot first. If an agent breaks something four edits deep, one <span class="mono">restore</span> rolls back the whole working tree, with no manual <span class="mono">git</span> cleanup. Files it created are removed too, not just its edits undone, and permissions come back exactly as they were.
         </p>
       </div>
 
@@ -949,9 +931,7 @@
         >
         <span class="mono tile-label">multi-project</span>
         <p class="tile-desc">
-          One daemon serves every project you have open, each with its own
-          sandbox, permissions, and history — not a separate process (and a
-          separate memory footprint) per repo.
+          One daemon serves all your open projects. Each has its own sandbox, permissions, and history, without a separate process and its own memory cost per repo.
         </p>
       </div>
 
@@ -987,9 +967,9 @@
             d="M7 10l3 2l-3 2m5 0h4"
           /></svg
         >
-        <span class="mono tile-label">more than a chat box</span>
+        <span class="mono tile-label">terminal and browser</span>
         <p class="tile-desc">
-          Agents get a real terminal you can watch and type into, for dev
+          Agents get a terminal you can watch and type into, for dev
           servers and long builds. They can drive a browser panel to check
           their own work, search the web, hand side tasks to read-only helper
           agents, and ask you a question mid-turn instead of guessing.
@@ -1030,13 +1010,12 @@
             <span class="gate-title">plan mode</span>
             <span class="gate-item mono ok">only: file_read · search · write_plan</span>
             <span class="gate-item"
-              >everything else isn't offered — not denied, never defined</span
+              >everything else isn't offered, not denied and never defined</span
             >
           </div>
         </div>
         <p class="tile-desc tile-caption">
-          Plan mode doesn't deny a write when the model tries one — it's never
-          told the tool exists at all, so there's nothing to attempt.
+          Plan mode doesn't block a write when the model tries one. The model is never told the write tool exists, so there's nothing to attempt.
         </p>
       </div>
     </div>
