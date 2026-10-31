@@ -535,7 +535,7 @@
 
 <main>
   <div class="brand">
-    <img src="/logo.png" alt="yoakeland logo" />
+    <img src="/mark.svg" alt="yoakeland logo" />
     <span class="mono">yoakeland</span>
   </div>
 
