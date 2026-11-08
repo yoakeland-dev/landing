@@ -1,77 +1,62 @@
 <script>
   import "./+page.css";
   import { onMount } from "svelte";
-  import StarField from "$lib/StarField.svelte";
+  import Ported from "$lib/Ported.svelte";
+  import { providers, modeSpecs } from "$lib/providers.js";
+  import shell from "$lib/ported/shell.html?raw";
+  import sidebar from "$lib/ported/sidebar.html?raw";
+  import modepanel from "$lib/ported/modepanel.html?raw";
+  import modelpanel from "$lib/ported/modelpanel.html?raw";
+  import work from "$lib/ported/work.html?raw";
+  import people from "$lib/ported/people.html?raw";
+  import phone from "$lib/ported/phone.html?raw";
 
-  import anthropicIcon from "@lobehub/icons-static-svg/icons/anthropic.svg?url";
-  import openaiIcon from "@lobehub/icons-static-svg/icons/openai.svg?url";
-  import deepseekIcon from "@lobehub/icons-static-svg/icons/deepseek.svg?url";
-  import geminiIcon from "@lobehub/icons-static-svg/icons/gemini.svg?url";
-  import mistralIcon from "@lobehub/icons-static-svg/icons/mistral.svg?url";
-  import metaIcon from "@lobehub/icons-static-svg/icons/meta.svg?url";
-  import qwenIcon from "@lobehub/icons-static-svg/icons/qwen.svg?url";
-  import moonshotIcon from "@lobehub/icons-static-svg/icons/moonshot.svg?url";
-  import openrouterIcon from "@lobehub/icons-static-svg/icons/openrouter.svg?url";
-  import awsIcon from "@lobehub/icons-static-svg/icons/bedrock.svg?url";
-  import cloudflareIcon from "@lobehub/icons-static-svg/icons/cloudflare.svg?url";
-  import huggingfaceIcon from "@lobehub/icons-static-svg/icons/huggingface.svg?url";
-  import nvidiaIcon from "@lobehub/icons-static-svg/icons/nvidia.svg?url";
-  import ollamaIcon from "@lobehub/icons-static-svg/icons/ollama.svg?url";
+  let stateOn = $state("lamp");
+  let modeOn = $state(1); // the dial's capture opens on Ask
+  const cellWord = { allow: "Yes", ask: "Asks", deny: "No", auto: "Reviewer" };
+  const modeNames = ["Read", "Ask", "Edit", "Auto", "Run"];
+  const agents = providers.filter((p) => ["claudecode", "codex", "opencode", "kimi"].includes(p.id));
+  const local = providers.filter((p) => p.id === "ollama");
+  const apis = providers.filter((p) => !agents.includes(p) && !local.includes(p));
 
-  import claudeCodeIcon from "@lobehub/icons-static-svg/icons/claudecode.svg?url";
-  import codexIcon from "@lobehub/icons-static-svg/icons/codex.svg?url";
-  import cursorIcon from "@lobehub/icons-static-svg/icons/cursor.svg?url";
-  import opencodeIcon from "@lobehub/icons-static-svg/icons/opencode.svg?url";
-  import geminiCliIcon from "@lobehub/icons-static-svg/icons/geminicli.svg?url";
-  import grokIcon from "@lobehub/icons-static-svg/icons/grok.svg?url";
-  import ampIcon from "@lobehub/icons-static-svg/icons/amp.svg?url";
+  // The finished row sits below the sidebar's fold at this size: bring it up for its statement.
+  let listEl;
+  $effect(() => {
+    const pane = listEl?.querySelector(".chat-list");
+    if (pane) pane.scrollTop = stateOn === "tick" ? pane.scrollHeight : 0;
+  });
 
-  import claudeCodeIconColor from "@lobehub/icons-static-svg/icons/claudecode-color.svg?url";
-  import codexIconColor from "@lobehub/icons-static-svg/icons/codex-color.svg?url";
-  import geminiCliIconColor from "@lobehub/icons-static-svg/icons/geminicli-color.svg?url";
-  import ampIconColor from "@lobehub/icons-static-svg/icons/amp-color.svg?url";
-
-  import deepseekIconColor from "@lobehub/icons-static-svg/icons/deepseek-color.svg?url";
-  import geminiIconColor from "@lobehub/icons-static-svg/icons/gemini-color.svg?url";
-  import mistralIconColor from "@lobehub/icons-static-svg/icons/mistral-color.svg?url";
-  import metaIconColor from "@lobehub/icons-static-svg/icons/meta-color.svg?url";
-  import qwenIconColor from "@lobehub/icons-static-svg/icons/qwen-color.svg?url";
-  import openrouterIconColor from "@lobehub/icons-static-svg/icons/openrouter-color.svg?url";
-  import awsIconColor from "@lobehub/icons-static-svg/icons/bedrock-color.svg?url";
-  import cloudflareIconColor from "@lobehub/icons-static-svg/icons/cloudflare-color.svg?url";
-  import huggingfaceIconColor from "@lobehub/icons-static-svg/icons/huggingface-color.svg?url";
-  import nvidiaIconColor from "@lobehub/icons-static-svg/icons/nvidia-color.svg?url";
-
-  /** @type {"mac" | "windows" | "linux" | "mobile"} */
-  let os = $state("mac");
-
-  const labels = { mac: "macOS", windows: "Windows", linux: "Linux" };
+  function dialClick(e) {
+    const t = e.target.closest('[role="radio"]');
+    if (t) modeOn = [...t.parentElement.querySelectorAll('[role="radio"]')].indexOf(t);
+  }
 
   const WEB_URL = "https://app.yoake.land";
   const REPO = "https://github.com/yoakeland-dev/yoakeland";
-  // Per-OS installer pattern; arm64 first on mac since most Macs are Apple silicon.
+  const RELEASES = `${REPO}/releases`;
   const installers = {
     mac: [/arm64.*\.dmg$/i, /\.dmg$/i],
     windows: [/\.exe$/i],
     linux: [/\.AppImage$/i],
   };
-  /** Latest-release asset URL per OS; empty until fetched, then the releases page is the fallback. */
+
+  /** @type {"mac" | "windows" | "linux" | "mobile"} */
+  let os = $state("linux");
   let dl = $state({});
-  // Every release is a prerelease, which GitHub's /releases/latest ignores, so use the list.
-  const downloadUrl = (id) => dl[id] ?? `${REPO}/releases`;
-  const experimental = { mac: true, windows: true };
+  const downloadUrl = (id) => dl[id] ?? RELEASES;
+  const mobile = $derived(os === "mobile");
+  const mainHref = $derived(mobile ? WEB_URL : downloadUrl(os));
+  const mainLabel = $derived(mobile ? "Open the web app" : "Download Yoake");
 
   async function loadRelease() {
     try {
-      const res = await fetch(
-        "https://api.github.com/repos/yoakeland-dev/yoakeland/releases?per_page=1",
-      );
+      // Every release is a prerelease, which /releases/latest ignores, so use the list.
+      const res = await fetch("https://api.github.com/repos/yoakeland-dev/yoakeland/releases?per_page=1");
       if (!res.ok) return;
       const [release] = await res.json();
-      const assets = release?.assets ?? [];
       for (const [id, patterns] of Object.entries(installers)) {
         for (const re of patterns) {
-          const a = assets.find((x) => re.test(x.name));
+          const a = (release?.assets ?? []).find((x) => re.test(x.name));
           if (a) {
             dl[id] = a.browser_download_url;
             break;
@@ -82,1001 +67,239 @@
   }
 
   onMount(() => {
-    const platform = navigator.userAgent;
-    if (/Android|iPhone|iPad|iPod/.test(platform) || (/Macintosh/.test(platform) && navigator.maxTouchPoints > 1)) os = "mobile";
-    else if (/Win/.test(platform)) os = "windows";
-    else if (/Linux|X11/.test(platform)) os = "linux";
-    else os = "mac";
+    const ua = navigator.userAgent;
+    if (/Android|iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) os = "mobile";
+    else if (/Win/.test(ua)) os = "windows";
+    else if (/Mac/.test(ua)) os = "mac";
+    else os = "linux";
     loadRelease();
-  });
-
-  function roundedPolygonPath(points, radius) {
-    const n = points.length;
-    let d = "";
-    for (let i = 0; i < n; i++) {
-      const prev = points[(i - 1 + n) % n];
-      const curr = points[i];
-      const next = points[(i + 1) % n];
-      const v1 = { x: curr.x - prev.x, y: curr.y - prev.y };
-      const len1 = Math.hypot(v1.x, v1.y);
-      const n1 = { x: v1.x / len1, y: v1.y / len1 };
-      const v2 = { x: next.x - curr.x, y: next.y - curr.y };
-      const len2 = Math.hypot(v2.x, v2.y);
-      const n2 = { x: v2.x / len2, y: v2.y / len2 };
-      const r = Math.min(radius, len1 / 2, len2 / 2);
-      const p1 = { x: curr.x - n1.x * r, y: curr.y - n1.y * r };
-      const p2 = { x: curr.x + n2.x * r, y: curr.y + n2.y * r };
-      d += i === 0 ? `M ${p1.x} ${p1.y} ` : `L ${p1.x} ${p1.y} `;
-      d += `Q ${curr.x} ${curr.y} ${p2.x} ${p2.y} `;
-    }
-    return d + "Z";
-  }
-
-  const HOW_RADIUS = 16;
-  const HOW_KERF = 10;
-  const HOW_SEAM_SLANT = 35;
-  let howW = $state(0);
-  let howH = $state(0);
-
-  let howClips = $derived.by(() => {
-    if (!howW || !howH) return { left: "", right: "" };
-    const center = howW / 2;
-    const seamTop = center + HOW_SEAM_SLANT;
-    const seamBottom = center - HOW_SEAM_SLANT;
-    const half = HOW_KERF / 2;
-    const left = roundedPolygonPath(
-      [
-        { x: 0, y: 0 },
-        { x: seamTop - half, y: 0 },
-        { x: seamBottom - half, y: howH },
-        { x: 0, y: howH },
-      ],
-      HOW_RADIUS,
+    document.documentElement.classList.add("js");
+    // Each statement lights its rows as it reaches the middle of the screen.
+    const io = new IntersectionObserver(
+      (es) => es.forEach((e) => e.isIntersecting && (stateOn = e.target.dataset.said)),
+      { rootMargin: "-45% 0px -45% 0px" },
     );
-    const right = roundedPolygonPath(
-      [
-        { x: seamTop + half, y: 0 },
-        { x: howW, y: 0 },
-        { x: howW, y: howH },
-        { x: seamBottom + half, y: howH },
-      ],
-      HOW_RADIUS,
-    );
-    return { left, right };
-  });
-
-  let illoScale = $derived(
-    howW && howH ? Math.min(1, howW / 380, howH / 300) : 1,
-  );
-  let illoScaleH = $derived(howH ? Math.min(1, howH / 300) : 1);
-
-  const platforms = [
-    { id: "mac", label: "macOS" },
-    { id: "windows", label: "Windows" },
-    { id: "linux", label: "Linux" },
-  ];
-
-  const providers = [
-    {
-      id: "anthropic",
-      label: "Anthropic",
-      org: "Anthropic · San Francisco",
-      icon: anthropicIcon,
-      color: "#D97757",
-      endpoint: "api.anthropic.com/v1/messages",
-      keySource: "UI Keyring (or $ANTHROPIC_API_KEY)",
-      protocol: "Anthropic Messages API · prompt caching",
-      runtimeNote: "direct TLS · thinking budget enabled",
-      daemonLog:
-        "auth: secure UI keyring · cache read hit · thinking budget 8k",
-      local: false,
-    },
-    {
-      id: "ollama",
-      label: "Ollama",
-      org: "Runs on your own hardware",
-      icon: ollamaIcon,
-      color: "#E7E7E7",
-      endpoint: "http://localhost:11434",
-      keySource: "None (offline local runner)",
-      protocol: "Native Ollama API & OpenAI-compatible endpoints",
-      runtimeNote: "runs on localhost · no cloud calls",
-      daemonLog: "runtime: localhost:11434 · local GPU · no cloud calls",
-      local: true,
-    },
-    {
-      id: "deepseek",
-      label: "DeepSeek",
-      org: "DeepSeek AI · Hangzhou",
-      icon: deepseekIcon,
-      colorIcon: deepseekIconColor,
-      color: "#5786FE",
-      endpoint: "api.deepseek.com/v1/chat/completions",
-      keySource: "UI Keyring (or $DEEPSEEK_API_KEY)",
-      protocol: "DeepSeek API · streams <think> reasoning tokens",
-      runtimeNote: "direct TLS · context caching",
-      daemonLog: "auth: secure UI keyring · streaming <think> trace",
-      local: false,
-    },
-    {
-      id: "openai",
-      label: "OpenAI",
-      org: "OpenAI · San Francisco",
-      icon: openaiIcon,
-      color: "#10A37F",
-      endpoint: "api.openai.com/v1/chat/completions",
-      keySource: "UI Keyring (or $OPENAI_API_KEY)",
-      protocol: "OpenAI chat completions · structured outputs and tool calling",
-      runtimeNote: "direct TLS · reasoning effort parameter",
-      daemonLog: "auth: secure UI keyring · reasoning effort: medium",
-      local: false,
-    },
-    {
-      id: "mistral",
-      label: "Mistral",
-      org: "Mistral AI · Paris",
-      icon: mistralIcon,
-      colorIcon: mistralIconColor,
-      color: "#FA520F",
-      endpoint: "api.mistral.ai/v1/fim/completions",
-      keySource: "UI Keyring (or $MISTRAL_API_KEY)",
-      protocol: "Fill-in-the-middle (FIM) · prefix and suffix completion",
-      runtimeNote: "direct TLS · European provider",
-      daemonLog:
-        "auth: secure UI keyring · FIM buffer active · streaming",
-      local: false,
-    },
-    {
-      id: "qwen",
-      label: "Qwen",
-      org: "Alibaba Cloud · Hangzhou",
-      icon: qwenIcon,
-      colorIcon: qwenIconColor,
-      color: "#6950EF",
-      endpoint: "dashscope.aliyuncs.com/compatible-mode/v1",
-      keySource: "UI Keyring (or $DASHSCOPE_API_KEY)",
-      protocol: "DashScope Model Studio · 128K context window",
-      runtimeNote: "direct TLS · OpenAI-compatible mode",
-      daemonLog: "auth: secure UI keyring · 128k context window",
-      local: false,
-    },
-    {
-      id: "gemini",
-      label: "Gemini",
-      org: "Google DeepMind",
-      icon: geminiIcon,
-      colorIcon: geminiIconColor,
-      color: "#8E75B2",
-      endpoint: "generativelanguage.googleapis.com/v1beta",
-      keySource: "UI Keyring (or $GEMINI_API_KEY)",
-      protocol: "Google AI Studio · long context · multimodal input",
-      runtimeNote: "direct TLS · Google-hosted API",
-      daemonLog: "auth: secure UI keyring · long context window",
-      local: false,
-    },
-    {
-      id: "openrouter",
-      label: "OpenRouter",
-      org: "OpenRouter · Routing Fabric",
-      icon: openrouterIcon,
-      colorIcon: openrouterIconColor,
-      color: "#c8ff00",
-      endpoint: "openrouter.ai/api/v1",
-      keySource: "UI Keyring (or $OPENROUTER_API_KEY)",
-      protocol: "OpenAI-compatible router · one key for many providers",
-      runtimeNote: "direct TLS · one key for many models",
-      daemonLog:
-        "auth: secure UI keyring · fallback chain: anthropic -> bedrock",
-      local: false,
-    },
-    {
-      id: "aws",
-      label: "AWS Bedrock",
-      org: "Amazon Web Services · Seattle",
-      icon: awsIcon,
-      colorIcon: awsIconColor,
-      color: "#6c90b9",
-      endpoint: "bedrock-runtime.{region}.amazonaws.com",
-      keySource: "AWS IAM / SigV4 Chain / UI",
-      protocol: "AWS SigV4 request signing",
-      runtimeNote: "direct TLS · your AWS account",
-      daemonLog: "auth: AWS credential chain (us-east-1)",
-      local: false,
-    },
-    {
-      id: "meta",
-      label: "Meta",
-      org: "Meta FAIR · Menlo Park",
-      icon: metaIcon,
-      colorIcon: metaIconColor,
-      color: "#0467DF",
-      endpoint: "localhost:8000/v1 (vLLM / llama.cpp)",
-      keySource: "Local vLLM / self-hosted endpoint",
-      protocol: "RoPE 128K context · Grouped-Query Attention (GQA)",
-      runtimeNote: "your own server or endpoint",
-      daemonLog: "runtime: your vLLM or llama.cpp server",
-      local: false,
-    },
-    {
-      id: "cloudflare",
-      label: "Cloudflare",
-      org: "Cloudflare Workers AI",
-      icon: cloudflareIcon,
-      colorIcon: cloudflareIconColor,
-      color: "#F38020",
-      endpoint: "api.cloudflare.com/client/v4/accounts/{id}/ai/v1",
-      keySource: "UI Keyring (or $CLOUDFLARE_API_TOKEN)",
-      protocol: "Cloudflare Workers AI REST API",
-      runtimeNote: "direct TLS · Cloudflare edge network",
-      daemonLog: "auth: Cloudflare API token · Cloudflare edge network",
-      local: false,
-    },
-    {
-      id: "huggingface",
-      label: "HuggingFace",
-      org: "HuggingFace · New York / Paris",
-      icon: huggingfaceIcon,
-      colorIcon: huggingfaceIconColor,
-      color: "#FFD21E",
-      endpoint: "api-inference.huggingface.co/v1",
-      keySource: "UI Keyring (or $HF_TOKEN)",
-      protocol: "Text Generation Inference (TGI) · Dedicated Endpoints",
-      runtimeNote: "direct TLS · Hugging Face model hub",
-      daemonLog: "auth: HF user token · TGI streaming container attached",
-      local: false,
-    },
-    {
-      id: "nvidia",
-      label: "NVIDIA",
-      org: "NVIDIA NIM · Santa Clara",
-      icon: nvidiaIcon,
-      colorIcon: nvidiaIconColor,
-      color: "#76B900",
-      endpoint: "integrate.api.nvidia.com/v1",
-      keySource: "UI Keyring (or $NVIDIA_API_KEY)",
-      protocol: "NVIDIA NIM microservice API",
-      runtimeNote: "direct TLS · hosted NVIDIA endpoint",
-      daemonLog: "auth: NVIDIA API key · streaming",
-      local: false,
-    },
-    {
-      id: "moonshot",
-      label: "Moonshot",
-      org: "Moonshot AI (Kimi) · Beijing",
-      icon: moonshotIcon,
-      color: "#E7E7E7",
-      endpoint: "api.moonshot.cn/v1",
-      keySource: "UI Keyring (or $MOONSHOT_API_KEY)",
-      protocol: "Moonshot Open Platform API",
-      runtimeNote: "direct TLS · long context",
-      daemonLog: "auth: secure UI keyring · Kimi API",
-      local: false,
-    },
-    {
-      id: "claudecode",
-      label: "Claude Code",
-      org: "Anthropic · your subscription",
-      icon: claudeCodeIcon,
-      colorIcon: claudeCodeIconColor,
-      color: "#D97757",
-      endpoint: "claude (your installed CLI)",
-      keySource: "Your existing Claude login",
-      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
-      runtimeNote: "your subscription · no key stored",
-      daemonLog: "agent: claude · own sandbox · permissions bridged",
-      local: true,
-    },
-    {
-      id: "codex",
-      label: "Codex",
-      org: "OpenAI · your subscription",
-      icon: codexIcon,
-      colorIcon: codexIconColor,
-      color: "#7A9DFF",
-      endpoint: "codex (your installed CLI)",
-      keySource: "Your existing ChatGPT login",
-      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
-      runtimeNote: "your subscription · no key stored",
-      daemonLog: "agent: codex · own sandbox · permissions bridged",
-      local: true,
-    },
-    {
-      id: "cursor",
-      label: "Cursor",
-      org: "Cursor · ACP agent",
-      icon: cursorIcon,
-      color: "#E7E7E7",
-      endpoint: "cursor-agent (ACP)",
-      keySource: "Your existing Cursor login",
-      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
-      runtimeNote: "your subscription · no key stored",
-      daemonLog: "agent: cursor · ACP session attached",
-      local: true,
-    },
-    {
-      id: "opencode",
-      label: "OpenCode",
-      org: "OpenCode · ACP agent",
-      icon: opencodeIcon,
-      color: "#E7E7E7",
-      endpoint: "opencode (ACP)",
-      keySource: "Whatever OpenCode is configured with",
-      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
-      runtimeNote: "your subscription · no key stored",
-      daemonLog: "agent: opencode · ACP session attached",
-      local: true,
-    },
-    {
-      id: "geminicli",
-      label: "Gemini CLI",
-      org: "Google · ACP agent",
-      icon: geminiCliIcon,
-      colorIcon: geminiCliIconColor,
-      color: "#8E75B2",
-      endpoint: "gemini (ACP)",
-      keySource: "Your existing Google login",
-      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
-      runtimeNote: "your subscription · no key stored",
-      daemonLog: "agent: gemini · ACP session attached",
-      local: true,
-    },
-    {
-      id: "grok",
-      label: "Grok",
-      org: "xAI · ACP agent",
-      icon: grokIcon,
-      color: "#E7E7E7",
-      endpoint: "grok (ACP)",
-      keySource: "Your existing xAI login",
-      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
-      runtimeNote: "your subscription · no key stored",
-      daemonLog: "agent: grok · ACP session attached",
-      local: true,
-    },
-    {
-      id: "amp",
-      label: "Amp",
-      org: "Sourcegraph · your subscription",
-      icon: ampIcon,
-      colorIcon: ampIconColor,
-      color: "#F34E3F",
-      endpoint: "amp (your installed CLI)",
-      keySource: "Your existing Amp login",
-      protocol: "Coding-agent CLI driven as a subprocess · its own tools",
-      runtimeNote: "your subscription · no key stored",
-      daemonLog: "agent: amp · own sandbox",
-      local: true,
-    },
-  ];
-
-  /** @type {"mac" | "windows" | "linux" | null} */
-  let dlOs = $state(null);
-  let effectiveOs = $derived(dlOs ?? (os === "mobile" ? "mac" : os));
-
-  let selectedId = $state("anthropic");
-  let selected = $derived(
-    providers.find((p) => p.id === selectedId) ?? providers[0],
-  );
-
-  let deckEl = $state();
-  let canScrollTop = $state(false);
-  let canScrollBottom = $state(false);
-  let isPaused = $state(false);
-
-  function checkScroll() {
-    if (!deckEl) return;
-    canScrollTop = deckEl.scrollTop > 6;
-    canScrollBottom =
-      deckEl.scrollTop + deckEl.clientHeight < deckEl.scrollHeight - 6;
-  }
-
-  onMount(() => {
-    checkScroll();
-
-    // Auto-cycle through providers every 4.5s
-    const interval = setInterval(() => {
-      if (isPaused) return;
-      const idx = providers.findIndex((p) => p.id === selectedId);
-      const next = providers[(idx + 1) % providers.length];
-      selectedId = next.id;
-
-      if (deckEl) {
-        const activeBtn = deckEl.querySelector(`[data-id="${next.id}"]`);
-        if (activeBtn) {
-          const btnTop = activeBtn.offsetTop - deckEl.offsetTop;
-          const btnBottom = btnTop + activeBtn.offsetHeight;
-          if (
-            btnTop < deckEl.scrollTop ||
-            btnBottom > deckEl.scrollTop + deckEl.clientHeight
-          ) {
-            activeBtn.scrollIntoView({
-              behavior: "smooth",
-              block: "nearest",
-            });
-          }
-        }
-      }
-      checkScroll();
-    }, 4500);
-
-    return () => clearInterval(interval);
+    document.querySelectorAll("[data-said]").forEach((el) => io.observe(el));
+    return () => io.disconnect();
   });
 </script>
 
-{#snippet osIcon(p)}
-  <span
-    class="icon-mask os-icon"
-    style="--icon: url('/icons/os/{p}.svg');"
-    aria-hidden="true"
-  ></span>
+{#snippet down()}
+  <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2v9M4 7.5 8 11.5l4-4M3 14h10" /></svg>
 {/snippet}
 
-{#snippet providerIcon(iconUrl, colorIconUrl)}
-  <span class="provider-icon-swap">
-    <span
-      class="icon-mask provider-icon mono-icon"
-      style="--icon: url(&quot;{iconUrl}&quot;);"
-      aria-hidden="true"
-    ></span>
-    {#if colorIconUrl}
-      <img
-        class="provider-icon color-icon"
-        src={colorIconUrl}
-        alt=""
-        aria-hidden="true"
-      />
-    {/if}
-  </span>
+{#snippet rows(list)}
+  <ul>
+    {#each list as p}
+      <li><img class:inv={p.mono} src="/icons/brands/{p.icon}.svg" alt="" width="22" height="22" loading="lazy" />{p.label}</li>
+    {/each}
+  </ul>
 {/snippet}
 
-<div class="star-field-top">
-  <StarField mode="top" falloffPower={1.0} />
-</div>
-
-<main>
-  <div class="brand">
-    <img src="/mark.svg" alt="yoakeland logo" />
-    <span class="mono">yoakeland</span>
-  </div>
-
-  <div class="hero">
-    <h1>
-      Agents that run on <span class="locus"
-        ><svg
-          class="locus-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          ><rect x="3" y="5" width="18" height="11" rx="1" /><path
-            d="M8 20h8M12 16v4"
-          /></svg
-        ><span class="mono locus-text">your machine</span></span
-      >, never
-      <span class="locus"
-        ><svg
-          class="locus-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          ><path
-            d="M17.5 19a4.5 4.5 0 0 0 0-9 5.5 5.5 0 0 0-10.5-1.7A4 4 0 0 0 6 19h11.5Z"
-          /></svg
-        ><span class="mono locus-text">someone else's cloud</span></span
-      >.
-    </h1>
-    <div class="cta-row">
-      <a
-        class="btn"
-        class:primary={os !== "mobile"}
-        class:disabled={os === "mobile"}
-        href={os === "mobile" ? undefined : downloadUrl(os)}
-        aria-disabled={os === "mobile"}
-        title={os === "mobile"
-          ? "Not available on mobile. Use the web version."
-          : undefined}
-        onclick={os === "mobile" ? (e) => e.preventDefault() : undefined}
-      >
-        {@render osIcon(os)}
-        <span class="mono">
-          {os === "mobile"
-            ? "Unavailable on mobile"
-            : `Download for ${labels[os]}`}
-        </span>
-      </a>
-      <a class="btn" class:primary={os === "mobile"} href={WEB_URL}
-        ><span class="mono">Open on web</span></a
-      >
+<header class="nav">
+  <div class="container nav__bar">
+    <a class="logo" href="#top"><img src="/mark.svg" alt="" width="24" height="24" />Yoake</a>
+    <nav class="nav__links" aria-label="Main">
+      <a class="link" href="#app">App</a>
+      <a class="link" href="#modes">Modes</a>
+      <a class="link" href="#providers">Providers</a>
+      <a class="link" href="#devices">Devices</a>
+      <a class="link" href="#faq">Questions</a>
+    </nav>
+    <div class="nav__end">
+      <a class="link" href={REPO}>GitHub</a>
+      <a class="btn btn--sm" href={mainHref}>{mainLabel}</a>
     </div>
-    <p class="cta-caption mono">
-      The web app and paired phones connect directly to the yoakeland you run. No cloud relay.{#if experimental[os]}
-        The {labels[os]} build is experimental.{/if}
-    </p>
   </div>
+</header>
 
-  <div class="showcase">
-    <img class="bg" src="/background.png" alt="" width="1768" height="890" />
-    <picture>
-      <source media="(max-width: 600px)" srcset="/app-screenshot-mobile.png" />
-      <img
-        class="app-shot"
-        src="/app-screenshot.png"
-        alt="yoakeland app"
-        width="1130"
-        height="698"
-      />
-    </picture>
-  </div>
-
-  <svg class="divider" width="100%" height="2" preserveAspectRatio="none">
-    <line x1="0" y1="1" x2="100%" y2="1" />
-  </svg>
-
-  <section class="how" id="how">
-    <div class="how-content">
-      <h2>No ritual.</h2>
-      <p>
-        Point it at a folder and start working. No onboarding questions, no telemetry handshakes, no sign-up page asking for your email before your first message. The same app runs on macOS, Windows, and Linux.
-      </p>
-      <p class="how-subtext">
-        The app starts the daemon for you. You can also run <span class="mono">./yoakeland</span> yourself on any machine. It opens a local socket and waits for connections.
-      </p>
-    </div>
-
-    <svg width="0" height="0" class="how-clip-defs">
-      <defs>
-        <clipPath id="how-clip-left" clipPathUnits="userSpaceOnUse">
-          <path d={howClips.left} />
-        </clipPath>
-        <clipPath id="how-clip-right" clipPathUnits="userSpaceOnUse">
-          <path d={howClips.right} />
-        </clipPath>
-      </defs>
-    </svg>
-
-    <div class="how-illustration-scroll">
-      <div
-        class="how-illustration"
-        bind:clientWidth={howW}
-        bind:clientHeight={howH}
-        style="--illo-scale: {illoScale}; --illo-scale-h: {illoScaleH}"
-      >
-        <div
-          class="how-card how-card-terminal"
-          style="clip-path: url(#how-clip-left)"
-        >
-          <img class="how-bg" src="/background.png" alt="" />
-          <div class="how-overlay"></div>
-          <div class="terminal">
-            <div class="terminal-bar">
-              <span class="dot"></span>
-              <span class="dot"></span>
-              <span class="dot"></span>
-            </div>
-            <pre class="terminal-body mono"><span
-                class="banner">      *         *  ·    .·           ·          .    ·         ·   *
-  <span class="banner-strong">✦ yoakeland ✦</span
-                >                     ·     .      *
-           ·   ✦              ✦                    *     +     .</span
-              >
-
-<span class="log"
-                ><span class="ts">2026/09/14 00:02:48</span> <span class="lvl"
-                  >INFO</span
-                >  local socket listening at /run/user/1000/yoake/yoakeland.sock</span
-              >
-<span class="log"
-                ><span class="ts">2026/09/14 00:02:49</span> <span class="lvl"
-                  >INFO</span
-                >  sandbox: bubblewrap</span
-              >
-<span class="log"
-                ><span class="ts">2026/09/14 00:02:49</span> <span class="lvl"
-                  >INFO</span
-                >  provider: anthropic (claude-sonnet-5)</span
-              >
-<span class="log log-bright"
-                ><span class="ts">2026/09/14 00:02:50</span> <span class="lvl"
-                  >INFO</span
-                >  no cloud round trip, we checked</span
-              >
-<span class="log log-bright"
-                ><span class="ts">2026/09/14 00:02:51</span> <span class="lvl"
-                  >INFO</span
-                >  waiting for you to ask it to fix something</span
-              ></pre>
-          </div>
+<main id="top">
+  <section class="hero" aria-labelledby="hero-h">
+    <img class="hero__sky" src="/sky-predawn.webp" alt="" width="2400" height="1760" fetchpriority="high" />
+    <div class="container hero__grid">
+      <div class="hero__text">
+        <h1 id="hero-h">Desktop and phone app for coding agents</h1>
+        <p class="lead">Run Claude Code, Codex and 11 more on a machine you own.</p>
+        <div class="actions">
+          <a class="btn" href={mainHref}>{mainLabel}</a>
+          {#if !mobile}<a class="btn btn--quiet" href={WEB_URL}>Open the web app</a>{/if}
         </div>
+        <p class="terms">Free and MIT licensed. No account and no cloud relay.</p>
+      </div>
+      <div class="hero__phone" role="img" aria-label="The Yoake phone app listing chats that need an answer"><Ported html={phone} w={390} fill /></div>
+    </div>
+  </section>
 
-        <div
-          class="how-card how-card-statement"
-          style="clip-path: url(#how-clip-right)"
-        >
-          <img class="how-bg how-bg-right" src="/background-2.png" alt="" />
-          <img
-            class="statement-shot"
-            src="/it-works-screenshot.png"
-            alt="yoakeland mid-session"
-          />
+  <section class="section section--l" id="app">
+    <div class="container">
+      <div class="head"><h2>Every chat in one list, sorted by what needs you</h2></div>
+      <div class="states">
+        <div class="win states__list" bind:this={listEl} data-on={stateOn} role="img" aria-label="The Yoake chat list, grouped by what needs you"><Ported html={sidebar} w={300} fill max={1.4} /></div>
+        <div class="states__said">
+          <p class:on={stateOn === "lamp"} data-said="lamp">A lamp means an agent is waiting for your answer.</p>
+          <p class:on={stateOn === "ring"} data-said="ring">A ring means it is working.</p>
+          <p class:on={stateOn === "tick"} data-said="tick">A tick means it finished while you were away.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Remade BYO Section: Two Distinct Side-by-Side Rectangles -->
-  <section class="byo" id="byo">
-    <div class="byo-header">
-      <h2>Any model, same rules.</h2>
-      <p>
-        Run weights on your local GPU, call a hosted API, or use a coding agent you already pay for (Claude Code, Codex, Cursor, OpenCode, and others). All of them follow the same permissions, snapshots, and history. Set keys in the app or read them from environment variables. Switch models per chat.
-      </p>
-    </div>
-
-    <div class="byo-split">
-      <!-- Rectangle 1 (Left): The Scrollable Provider Deck Panel -->
-      <div class="byo-panel byo-deck-panel">
-        <div
-          class="deck-gradient deck-gradient-top"
-          class:visible={canScrollTop}
-          aria-hidden="true"
-        ></div>
-
-        <div
-          class="byo-deck"
-          bind:this={deckEl}
-          onscroll={checkScroll}
-          onpointerenter={() => (isPaused = true)}
-          onpointerleave={() => (isPaused = false)}
-          ontouchstart={() => (isPaused = true)}
-          ontouchend={() => (isPaused = false)}
-        >
-          {#each providers as p}
-            <button
-              type="button"
-              class="byo-tile"
-              class:active={selectedId === p.id}
-              data-id={p.id}
-              style="--brand: {p.color}"
-              onclick={() => {
-                selectedId = p.id;
-                isPaused = true;
-              }}
-              onmouseenter={() => (selectedId = p.id)}
-            >
-              <span class="byo-tile-icon">
-                {@render providerIcon(p.icon, p.colorIcon)}
-              </span>
-              <span class="mono byo-tile-label">{p.label}</span>
-            </button>
-          {/each}
-        </div>
-
-        <div
-          class="deck-gradient deck-gradient-bottom"
-          class:visible={canScrollBottom}
-          aria-hidden="true"
-        ></div>
+  <section class="section" id="modes">
+    <div class="container">
+      <div class="head">
+        <h2>Five modes set what an agent may do</h2>
+        <p class="lead">Read, Ask, Edit, Auto and Run work the same for every agent.</p>
       </div>
-
-      <!-- Rectangle 2 (Right): Standalone Live Session Console -->
-      <div class="byo-panel byo-inspector-panel">
-        <div class="inspector-specs">
-          <div class="spec-header">
-            <div class="spec-brand" style="--brand: {selected.color}">
-              {@render providerIcon(selected.icon, selected.colorIcon)}
-              <div class="spec-title-group">
-                <span class="mono spec-brand-name">{selected.label}</span>
-                <span class="mono spec-brand-org">{selected.org}</span>
-              </div>
-            </div>
-            <span class="mono spec-badge" class:local={selected.local}>
-              {selected.runtimeNote}
-            </span>
+      <div class="modes">
+        <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+        <div class="win bare" onclick={dialClick} aria-label="The mode dial set to Ask"><Ported html={modepanel} w={231} max={1.75} hints={modeSpecs} /></div>
+        <div>
+          <div class="ladder-wrap">
+            <table class="ladder">
+              <thead><tr><th scope="col"><span class="visually-hidden">Mode</span></th><th scope="col">Read</th><th scope="col">Edit</th><th scope="col">Run</th><th scope="col">Web</th></tr></thead>
+              <tbody>
+                {#each modeSpecs as m, i}
+                  <tr class:on={modeOn === i}>
+                    <th scope="row">{modeNames[i]}</th>
+                    {#each m.cells as c}<td class="c-{c}">{cellWord[c]}</td>{/each}
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
           </div>
-
-          <div class="spec-table mono">
-            <div class="spec-row">
-              <span class="spec-key">endpoint</span>
-              <span class="spec-val">{selected.endpoint}</span>
-            </div>
-            <div class="spec-row">
-              <span class="spec-key">auth</span>
-              <span class="spec-val">{selected.keySource}</span>
-            </div>
-            <div class="spec-row">
-              <span class="spec-key">protocol</span>
-              <span class="spec-val spec-protocol">{selected.protocol}</span>
-            </div>
-          </div>
+          <ul class="facts">
+            <li>Bubblewrap sandbox on Linux</li>
+            <li>Seatbelt sandbox on macOS</li>
+            <li>Every approval in an audit log</li>
+          </ul>
         </div>
+      </div>
+      <figure class="shot">
+        <div class="win win--shell" role="img" aria-label="The Yoake desktop app: a chat list beside an open chat with a question waiting"><Ported html={shell} w={1440} fill /></div>
+        <figcaption class="cap">When an agent needs a yes, the question sits on top of the composer, and you can keep the answer as a rule.</figcaption>
+      </figure>
+    </div>
+  </section>
 
-        <!-- The Running Daemon Terminal with Real Starry Banner -->
-        <div class="inspector-cli mono">
-          <div class="cli-bar">
-            <div class="cli-dots">
-              <span class="cli-dot"></span>
-              <span class="cli-dot"></span>
-              <span class="cli-dot"></span>
-            </div>
-            <span class="cli-caption">$ ./yoakeland</span>
-          </div>
-          <pre class="cli-output"><code
-              ><span
-                class="banner-art">      *         *  ·    .·           ·          .    ·         ·   *
-  <span class="banner-strong">✦ yoakeland ✦</span
-                >                     ·     .      *
-           ·   ✦              ✦                    *     +     .</span
-              >
+  <section class="section section--l" id="work">
+    <div class="container">
+      <div class="head">
+        <h2>Subagents, terminals and diffs beside the chat</h2>
+        <p class="lead">Watch subagents work, read the diff before you approve it, and keep the dev server in a terminal tab. Rewind to a snapshot when a turn goes wrong.</p>
+      </div>
+      <div class="win win--work" role="img" aria-label="A chat with running subagents beside the subagent panel"><Ported html={work} w={1184} max={1.11} fill /></div>
+    </div>
+  </section>
 
-<span class="cli-ts">04:18:02</span> <span class="cli-info">INFO</span
-              > session active at ~/.yoake/workspace
-<span class="cli-ts">04:18:02</span> <span class="cli-info">INFO</span
-              > {selected.daemonLog}
-<span class="cli-ts">04:18:03</span> <span class="cli-ready">READY</span
-              > stream attached · 0ms daemon restart</code
-            ></pre>
+  <section class="section" id="providers">
+    <div class="container">
+      <div class="head">
+        <h2>Works with 13 agents and model providers</h2>
+        <p class="lead">Use the coding agents you already pay for, a hosted API or models on your own GPU. Change model in the middle of a chat and the context goes with you.</p>
+      </div>
+      <div class="providers">
+        <div class="groups">
+          <div class="group"><h3>Coding agents</h3><p>The logins you already have</p>{@render rows(agents)}</div>
+          <div class="group group--apis"><h3>Hosted APIs</h3><p>A key from your keyring or environment</p>{@render rows(apis)}</div>
+          <div class="group"><h3>Your own GPU</h3><p>No key</p>{@render rows(local)}</div>
         </div>
+        <div class="win bare" role="img" aria-label="The model picker"><Ported html={modelpanel} w={308} max={1.36} /></div>
       </div>
     </div>
   </section>
 
-  <section class="features">
-    <h2>Why run it yourself</h2>
-    <div class="bento">
-      <div class="tile tile-lg">
-        <svg
-          class="tile-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><path
-            d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"
-          /><path d="M11 11a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" /><path
-            d="M12 12l0 2.5"
-          /></svg
-        >
-        <span class="mono tile-label">sandboxed</span>
-        <div class="tile-stack">
-          <span class="stack-rung">Linux: Bubblewrap, then namespaces</span>
-          <span class="stack-rung">macOS: Seatbelt (sandbox-exec)</span>
-          <span class="stack-rung warn"
-            >Windows: resource caps only, no filesystem isolation</span
-          >
+  <section class="section section--l" id="devices">
+    <div class="container">
+      <div class="head">
+        <h2>One server for your desktop, browser and phone</h2>
+        <p class="lead">Each device connects to it directly over TLS or WebRTC.</p>
+      </div>
+      <div class="system" role="img" aria-label="Diagram: the desktop app, a browser and a phone each connect straight to yoakeland over TLS or WebRTC.">
+        <div class="system__ends">
+          <div class="system__end">Desktop app</div>
+          <div class="system__end">Browser</div>
+          <div class="system__end">Phone</div>
         </div>
-        <div class="tile-boundary mono">
-          <span class="line ok">ALLOWED: ~/workspace/yoake/* (rw)</span>
-          <span class="line warn">BLOCKED: ~/.ssh, ~/.gnupg, /etc</span>
-          <span class="line warn">CHAINED: ; && | $() ` → ask first</span>
+        <div class="system__wire">
+          <span><b>TLS or WebRTC</b></span><span></span><span></span>
         </div>
-        <p class="tile-desc tile-caption">
-          Shell commands run in the strongest sandbox your OS supports. Where there isn't one, you get a red warning, and one setting turns bash off entirely.
-        </p>
+        <div class="system__host"><code>yoakeland</code><p>Runs on a laptop, a home server or a VPS.</p></div>
       </div>
-
-      <div class="tile">
-        <svg
-          class="tile-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><path
-            d="M13 9a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1v-10"
-          /><path
-            d="M18 8v-3a1 1 0 0 0 -1 -1h-13a1 1 0 0 0 -1 1v12a1 1 0 0 0 1 1h9"
-          /><path d="M16 9h2" /></svg
-        >
-        <span class="mono tile-label">multi-device</span>
-        <p class="tile-desc">
-          Start a task on your desktop and pick it up on your phone or another laptop. Pair by scanning a QR code, or give each person their own token. No account and no cloud relay in between.
-        </p>
-      </div>
-
-      <div class="tile">
-        <svg
-          class="tile-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><path
-            d="M5 21v-16a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v16l-3 -2l-2 2l-2 -2l-2 2l-2 -2l-3 2m4 -14h6m-6 4h6m-2 4h2"
-          /></svg
-        >
-        <span class="mono tile-label">tracked spend</span>
-        <p class="tile-desc">
-          Priced from your provider's own rate card, with no markup and no bundled credits. Set a spend cap per chat, and a turn pauses to ask before it goes over. Run on your local GPU instead and the cost is <span class="mono">$0.00</span>.
-        </p>
-      </div>
-
-      <div class="tile tile-wide">
-        <svg
-          class="tile-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><path d="M12 8l0 4l2 2" /><path
-            d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5"
-          /></svg
-        >
-        <span class="mono tile-label">undoable</span>
-        <p class="tile-desc">
-          Every write saves a snapshot first. If an agent breaks something four edits deep, one <span class="mono">restore</span> rolls back the whole working tree, with no manual <span class="mono">git</span> cleanup. Files it created are removed too, not just its edits undone, and permissions come back exactly as they were.
-        </p>
-      </div>
-
-      <div class="tile">
-        <svg
-          class="tile-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><path d="M12 4l-8 4l8 4l8 -4l-8 -4" /><path
-            d="M4 12l8 4l8 -4"
-          /><path d="M4 16l8 4l8 -4" /></svg
-        >
-        <span class="mono tile-label">multi-project</span>
-        <p class="tile-desc">
-          One daemon serves all your open projects. Each has its own sandbox, permissions, and history, without a separate process and its own memory cost per repo.
-        </p>
-      </div>
-
-      <div class="tile">
-        <svg
-          class="tile-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><path d="M9 4v4m6-4v4M7 8h10v4a5 5 0 0 1-10 0V8m5 9v3" /></svg
-        >
-        <span class="mono tile-label">extensible</span>
-        <p class="tile-desc">
-          Plug in any <span class="mono">MCP</span> server, or reuse the
-          <span class="mono">.mcp.json</span> and skill folders you already
-          have from other tools. Every tool call still asks first.
-        </p>
-      </div>
-
-      <div class="tile tile-wide">
-        <svg
-          class="tile-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.6"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          ><rect x="3" y="4" width="18" height="16" rx="2" /><path
-            d="M7 10l3 2l-3 2m5 0h4"
-          /></svg
-        >
-        <span class="mono tile-label">terminal and browser</span>
-        <p class="tile-desc">
-          Agents get a terminal you can watch and type into, for dev
-          servers and long builds. They can drive a browser panel to check
-          their own work, search the web, hand side tasks to read-only helper
-          agents, and ask you a question mid-turn instead of guessing.
-        </p>
-      </div>
-
-      <div class="tile tile-full">
-        <div class="tile-header">
-          <div class="tile-header-left">
-            <svg
-              class="tile-icon-sm"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              ><path
-                d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6"
-              /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path
-                d="M8 11v-4a4 4 0 1 1 8 0v4"
-              /></svg
-            >
-            <span class="mono tile-label">plan mode</span>
-          </div>
-        </div>
-        <div class="tile-gate">
-          <div class="gate-col">
-            <span class="gate-title">normal mode</span>
-            <span class="gate-item mono ok"
-              >auto: file_read · search</span
-            >
-            <span class="gate-item mono warn"
-              >ask: file_write · file_edit · bash · web_fetch · mcp</span
-            >
-          </div>
-          <div class="gate-col">
-            <span class="gate-title">plan mode</span>
-            <span class="gate-item mono ok">only: file_read · search · write_plan</span>
-            <span class="gate-item"
-              >everything else isn't offered, not denied and never defined</span
-            >
-          </div>
-        </div>
-        <p class="tile-desc tile-caption">
-          Plan mode doesn't block a write when the model tries one. The model is never told the write tool exists, so there's nothing to attempt.
-        </p>
-      </div>
+      <ol class="steps">
+        <li><h3>Start yoakeland</h3><p>The desktop app starts it for you, or run it yourself on any machine.</p></li>
+        <li><h3>Create a pairing code</h3><p>The app shows a code and a QR for the new device.</p></li>
+        <li><h3>Connect the device</h3><p>Enter the code on your phone or another computer, then answer from there.</p></li>
+      </ol>
     </div>
   </section>
 
-  <svg class="divider" width="100%" height="2" preserveAspectRatio="none">
-    <line x1="0" y1="1" x2="100%" y2="1" />
-  </svg>
-
-  <section class="download" id="download">
-    <p class="download-statement">One daemon. Desktop, phone, or headless.</p>
-
-    <div class="download-main">
-      {#if os === "mobile"}
-        <a class="btn primary download-btn" href={WEB_URL}
-          ><span class="mono">Open on web</span></a
-        >
-      {:else}
-        <a class="btn primary download-btn" href={downloadUrl(effectiveOs)}
-          >{@render osIcon(effectiveOs)}<span class="mono"
-            >Download for {labels[effectiveOs]}</span
-          ></a
-        >
-      {/if}
-
-      <div class="platform-switch">
-        {#each platforms as p}
-          <button
-            type="button"
-            class="platform-chip"
-            class:active={effectiveOs === p.id}
-            aria-pressed={effectiveOs === p.id}
-            onclick={() => (dlOs = p.id)}
-          >
-            {@render osIcon(p.id)}
-            <span class="mono">{p.label}</span>
-            {#if experimental[p.id]}<span class="mono chip-tag">experimental</span>{/if}
-            {#if os === p.id}<span class="detect-dot" aria-hidden="true"
-              ></span><span class="sr-only">(detected)</span>{/if}
-          </button>
-        {/each}
+  <section class="section" id="people">
+    <div class="container people">
+      <div>
+        <h2>Limited, Trusted and Full access for each person</h2>
+        <ul class="tiers">
+          <li>Limited people chat and edit files in projects already open.</li>
+          <li>Trusted people also help run the server.</li>
+          <li>Only Full reaches the machine, and a device never has more than its owner.</li>
+        </ul>
       </div>
+      <div class="win" role="img" aria-label="People settings for a person with Trusted access"><Ported html={people} w={621} max={1.03} /></div>
     </div>
+  </section>
+
+  <section class="section section--l" id="faq">
+    <div class="container"><div class="faq">
+      <div class="faq__side">
+        <h2>Questions</h2>
+        <p>Read the code or report a problem on GitHub.</p>
+        <a class="link faq__link" href={REPO}>See the source on GitHub</a>
+      </div>
+      <div>
+        <div class="faq__item"><h3>What does Yoake cost?</h3><p>Nothing. Yoake is free and MIT licensed. You pay your own agent subscriptions or API bills.</p></div>
+        <div class="faq__item"><h3>Does my code go through your servers?</h3><p>No. Your devices connect straight to the yoakeland you run, with no cloud relay.</p></div>
+        <div class="faq__item"><h3>Do I need an account?</h3><p>No. Point it at a folder and start a chat. There is no sign-up.</p></div>
+        <div class="faq__item"><h3>Do I need API keys?</h3><p>No. Claude Code and Codex use the logins you already have. API providers read a key from your keyring or environment.</p></div>
+        <div class="faq__item"><h3>Which systems does it run on?</h3><p>Linux, macOS and Windows. The macOS and Windows builds are experimental, and Windows has no sandbox, only resource caps.</p></div>
+      </div>
+    </div></div>
   </section>
 </main>
 
-<footer>
-  <div class="star-field-bottom">
-    <StarField mode="bottom" falloffPower={0.35} />
-  </div>
-  <div class="footer-content">
-    <p class="footer-statement">Run it on your machine.</p>
-    <div class="footer-strip">
-      <div class="footer-links">
-        <a href="https://github.com/yoakeland-dev">GitHub</a>
-        <a href="#">License</a>
-      </div>
-      <span class="mono footer-copyright">yoakeland &copy; 2026</span>
+<section class="close" id="contact" aria-labelledby="close-h">
+  <img class="close__sky" src="/sky-morning.webp" alt="" width="2000" height="2107" loading="lazy" />
+  <div class="container close__in">
+    <div>
+      <h2 id="close-h">Download Yoake for your computer</h2>
+      <p class="lead">Builds for macOS, Windows and Linux, free.</p>
+      <div class="actions"><a class="btn btn--lg" href={mainHref}>{mainLabel}</a></div>
     </div>
+    <ul class="platforms">
+      <li><a href={downloadUrl("mac")}>macOS{@render down()}</a></li>
+      <li><a href={downloadUrl("windows")}>Windows{@render down()}</a></li>
+      <li><a href={downloadUrl("linux")}>Linux{@render down()}</a></li>
+    </ul>
   </div>
-  <div class="footer-wordmark-wrap">
-    <div class="footer-wordmark mono" aria-hidden="true">yoakeland</div>
+</section>
+
+<footer class="mast">
+  <div class="container">
+    <div class="mast__box"><a class="mast__word" href="#top">Yoake</a></div>
+    <div class="mast__row">
+      <p>One app for your coding agents.</p>
+      <nav class="mast__links" aria-label="Footer">
+        <a class="link" href="#app">Chat list</a>
+        <a class="link" href="#work">In the chat</a>
+        <a class="link" href="#modes">Modes</a>
+        <a class="link" href="#providers">Providers</a>
+        <a class="link" href="#devices">Devices</a>
+        <a class="link" href={REPO}>GitHub</a>
+        <a class="link" href={RELEASES}>Releases</a>
+        <a class="link" href={WEB_URL}>Web app</a>
+      </nav>
+    </div>
+    <div class="mast__legal">
+      <span>&copy; 2026 Yoake</span>
+      <span>Product names and logos are trademarks of their owners</span>
+    </div>
   </div>
 </footer>
