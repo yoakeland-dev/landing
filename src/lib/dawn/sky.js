@@ -13,8 +13,8 @@ const KEYS = [
   { t: 0.22, top: "#0b1033", mid: "#222a63", hor: "#47468c", cs: "#121641", cl: "#6a5fa0", cov: 0.55, glow: 0.1, gc: "#ff9f7a" },
   { t: 0.42, top: "#262a74", mid: "#6a58a6", hor: "#cf8a96", cs: "#34296d", cl: "#e8a090", cov: 0.58, glow: 0.28, gc: "#f0a08a" },
   { t: 0.58, top: "#6f72c4", mid: "#c98ab0", hor: "#e6a58f", cs: "#7e5ca0", cl: "#efbea2", cov: 0.55, glow: 0.34, gc: "#f2b49c" },
-  { t: 0.8, top: "#5683c4", mid: "#98b3d6", hor: "#e2c0b2", cs: "#98a6c6", cl: "#f1ddd2", cov: 0.58, glow: 0.14, gc: "#efc4aa" },
-  { t: 1.0, top: "#4a82c4", mid: "#86aedb", hor: "#d9c8bf", cs: "#aebcd6", cl: "#ebe3df", cov: 0.62, glow: 0.04, gc: "#eed6c4" },
+  { t: 0.8, top: "#5683c4", mid: "#98b3d6", hor: "#c9cfdc", cs: "#7f90b8", cl: "#f3e9e3", cov: 0.58, glow: 0.1, gc: "#efc4aa" },
+  { t: 1.0, top: "#3f7cc6", mid: "#7fb0e2", hor: "#bcd4ea", cs: "#6d86b4", cl: "#fbf8f5", cov: 0.62, glow: 0, gc: "#dfe9f4" },
 ].map((k) => ({ ...k, ...Object.fromEntries(CF.map((f) => [f, hex(k[f])])) }));
 
 export function sample(t) {
@@ -49,16 +49,16 @@ void main(){
  vec2 g=vec2((uv.x-0.5)*asp*0.6,(y+0.04)*1.5);col+=uGC*exp(-dot(g,g)*3.2)*uGlow*0.7;
  vec2 g2=vec2((uv.x-0.5)*asp*0.9,y*3.6);col+=uGC*exp(-dot(g2,g2)*1.5)*uGlow*0.45;
  float inv=1.0/(y*1.15+0.10);
- float mo=0.5+0.5*sin(uTime*0.06);
+ float mo=0.5+0.5*sin(uTime*0.1);
  float vis=1.0-smoothstep(0.55,1.05,y);
  for(int L=0;L<2;L++){
   float fl=float(L);
-  vec2 cp=vec2((uv.x-0.5)*asp*inv*0.5*(1.0-0.35*fl)+uTime*(0.010+0.006*fl)+uPtr.x*(0.04+0.03*fl),inv*(0.85-0.2*fl)-uScroll*(0.5+0.25*fl)-uTime*0.004)+vec2(fl*6.3,fl*2.1);
-  vec2 w=vec2(fbm(cp*0.8+uTime*0.02),fbm(cp*0.8+vec2(5.2,1.3)-uTime*0.017));
+  vec2 cp=vec2((uv.x-0.5)*asp*inv*0.5*(1.0-0.35*fl)+uTime*(0.02+0.0125*fl)+uPtr.x*(0.04+0.03*fl),inv*(0.85-0.2*fl)-uScroll*(0.5+0.25*fl)-uTime*0.006)+vec2(fl*6.3,fl*2.1);
+  vec2 w=vec2(fbm(cp*0.8+vec2(uTime*0.035,uTime*0.025)),fbm(cp*0.8+vec2(5.2,1.3)-vec2(uTime*0.025,uTime*0.03)));
   vec2 cq=cp*1.25+(w-0.5)*0.9;
   vec2 o=vec2(0.0,0.07);
-  float d=mix(fbm(cq+vec2(3.1,1.7)),fbm(cq*1.07+vec2(9.4,2.3)+uTime*0.01),mo);
-  float d2=mix(fbm(cq+o+vec2(3.1,1.7)),fbm((cq+o)*1.07+vec2(9.4,2.3)+uTime*0.01),mo);
+  float d=mix(fbm(cq+vec2(3.1,1.7)),fbm(cq*1.07+vec2(9.4,2.3)+uTime*0.02),mo);
+  float d2=mix(fbm(cq+o+vec2(3.1,1.7)),fbm((cq+o)*1.07+vec2(9.4,2.3)+uTime*0.02),mo);
   float cv=uCov-0.07*fl;
   float cover=smoothstep(1.0-cv,1.0-cv+0.26,d);
   float lit=clamp((d-d2)*6.0+0.42,0.0,1.0);
@@ -159,8 +159,9 @@ export function makeStars(canvas, density, poleX, poleY, reduce) {
     for (const s of stars) {
       // depth: z 0 = far, 1 = near. near stars turn faster, shift more with pointer and scroll
       const z = s.z, k = rot * (0.25 + 1.75 * z), ca = Math.cos(s.a + k), sa = Math.sin(s.a + k);
-      const x = px0 + s.r * ca + px * (1 + z * z * 34);
-      const y = py0 + s.r * sa + py * (1 + z * z * 18) - sy * z * z * 0.05;
+      // far away: only the slow turn moves them, no pointer parallax and no scroll shift
+      const x = px0 + s.r * ca;
+      const y = py0 + s.r * sa;
       const hr0 = s.s * 9;
       if (x < -hr0 - 6 || x > W + hr0 + 6 || y < -hr0 - 6 || y > H + hr0 + 6) continue;
       const fade = 1 - smooth((y / H - 0.5) / 0.42);
