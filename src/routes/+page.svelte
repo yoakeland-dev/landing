@@ -451,7 +451,7 @@
 
         <div class="panels">
           <section class="panel hero" class:on={step === 0} class:before={step > 0} inert={step !== 0}>
-            <h1>leave it running.<span>come back at first light<i class="dot" aria-hidden="true"></i></span></h1>
+            <h1><span class="ln">Leave it running,</span><span class="ln dim">Come back at first light<i class="dot" aria-hidden="true"></i></span></h1>
             <p class="sub">A calm desktop and phone client for the coding agents you leave running on your own servers.</p>
             <div class="cta">
               <a class="btn" href="#download" onclick={(e) => { e.preventDefault(); goto(STEPS - 1); }}>Download</a>
@@ -730,9 +730,21 @@
   .soon { padding: 2px 10px; border-radius: 999px; font-size: 12px; background: rgba(127, 156, 255, 0.18); color: #c4d0ff; text-shadow: none; }
   .panel.hero { justify-content: center; padding-top: 0; padding-bottom: 6cqh; gap: 0; }
   h1 { margin: 0; font: 400 clamp(2.2rem, min(5.4vw, 9.5cqh), 5.6rem)/0.98 var(--font-serif); letter-spacing: -0.03em; text-wrap: balance; }
-  h1 span { display: block; color: var(--ink-dim); }
-  .dot { display: inline-block; width: 0.13em; height: 0.13em; margin-left: 0.1em; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 0 0.1em rgba(228, 81, 92, 0.18), 0 0 0.7em 0.12em rgba(228, 81, 92, 0.5); animation: breathe 4.5s ease-in-out infinite; }
+  h1 .ln { display: block; }
+  h1 .dim { color: var(--ink-dim); }
+  .dot { display: inline-block; width: 0.13em; height: 0.13em; margin-left: 0.1em; border-radius: 50%; background: var(--lamp); box-shadow: 0 0 0 0.1em rgba(228, 81, 92, 0.18), 0 0 0.7em 0.12em rgba(228, 81, 92, 0.5); animation: ignite 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) 0.9s backwards, breathe 4.5s ease-in-out infinite; }
   @keyframes breathe { 0%, 100% { opacity: 0.82; } 50% { opacity: 1; } }
+  /* first load: the sky comes up from black while the copy arrives a line at a time, the red lamp lighting last. These only run on the
+     first paint (fill is backwards, so nothing is pinned afterwards and the step transitions stay in charge) */
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  @keyframes riseline { from { opacity: 0; transform: translateY(0.3em); filter: blur(10px); } }
+  @keyframes drop { from { opacity: 0; transform: translateY(-10px); } }
+  @keyframes ignite { from { transform: scale(0); } 55% { transform: scale(1.7); } }
+  @keyframes skyup { from { opacity: 0; } }
+  @keyframes land { from { opacity: 0; transform: scale(2.2); filter: blur(28px); } 55% { filter: blur(0); } }
+  @keyframes soft { from { opacity: 0; } }
+  .hero h1 { transform-origin: 50% 60%; animation: land 1.1s cubic-bezier(0.12, 0.85, 0.15, 1) backwards; }
+  .brandrow, .hero .sub, .hero .cta, .hero .fact, .hn { animation: soft 0.6s ease-out 0.55s backwards; }
   .hero .sub { margin-top: 22px; max-width: 44ch; font-size: 1.05rem; }
   .hero .fact { margin-top: 18px; font-size: 0.8125rem; color: var(--ink-dim); --o: 1; }
   .cta { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 22px; margin-top: 26px; }
@@ -848,6 +860,7 @@
   @media (prefers-reduced-motion: reduce) {
     :global(html) { scroll-behavior: auto; }
     .dot, .g, .dmx i.on, .hand { animation: none; }
+    .brandrow, .hero h1, .hero .sub, .hero .cta, .hero .fact, .hn { animation: none; }
     .dmx i.on { opacity: 0.6; }
     .page, .layer, .panel > *, .hubstar, .sunhost, .srvlbl small { transition: none !important; }
   }

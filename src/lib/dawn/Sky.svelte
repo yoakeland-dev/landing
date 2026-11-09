@@ -44,7 +44,9 @@
       gt += (target - gt) * (reduce ? 1 : 0.05);
       const name = skyName(gt);
       if (name !== dawn.name) dawn.name = name;
-      if (loadFade < 1) loadFade = Math.min(1, loadFade + dt / 1.8);
+      if (loadFade < 1) loadFade = Math.min(1, loadFade + dt / 1.4);
+      const lf = smooth(loadFade);
+      skyEl.style.opacity = lf; // the sky fades up from the page's dark ground; CSS can't, the canvas only draws after mount
       const vis = (1 - smooth((gt - 0.28) / 0.3)) * loadFade; // stars melt away as the sky lights up
       sky.draw(sample(gt), time, scrollY / Math.max(1, innerHeight), ptrX, -ptrY);
       stars.draw(vis, time, scrollY * 0.00006 + time * 0.0012, ptrX, ptrY, dt, scrollY);
@@ -62,7 +64,7 @@
   });
 </script>
 
-<canvas class="layer" style="z-index:0" bind:this={skyEl} aria-hidden="true"></canvas>
+<canvas class="layer" style="z-index:0;opacity:0" bind:this={skyEl} aria-hidden="true"></canvas>
 <canvas class="layer" style="z-index:2" bind:this={starEl} aria-hidden="true"></canvas>
 <div class="layer grain" bind:this={grainEl} aria-hidden="true"></div>
 
