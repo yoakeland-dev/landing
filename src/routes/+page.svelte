@@ -247,9 +247,9 @@
   const navLabel = $derived.by(() => { const i = hov ?? step; navDir = i < navAt ? -1 : 1; navAt = i; return LABELS[i]; });
   function hover(e) {
     if (e.pointerType === "touch") return;
+    if (dragging) { hov = null; return; } // while dragging the name follows the page
     const r = trackEl.getBoundingClientRect();
-    const i = Math.round(((e.clientX - r.left) / r.width) * (STEPS - 1));
-    hov = Math.abs(r.left + (i / (STEPS - 1)) * r.width - e.clientX) < 12 ? clamp(i, 0, STEPS - 1) : null;
+    hov = clamp(Math.round(((e.clientX - r.left) / r.width) * (STEPS - 1)), 0, STEPS - 1); // every point of the track belongs to its nearest dot, the same one a click lands on, so there are no dead gaps
   }
   let press = null; // where the pointer went down, until it moves far enough to count as a drag
   function dragStart(e) { press = { x: e.clientX, id: e.pointerId }; }

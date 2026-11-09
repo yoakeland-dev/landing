@@ -45,8 +45,6 @@
       const name = skyName(gt);
       if (name !== dawn.name) dawn.name = name;
       if (loadFade < 1) loadFade = Math.min(1, loadFade + dt / 1.4);
-      const lf = smooth(loadFade);
-      skyEl.style.opacity = lf; // the sky fades up from the page's dark ground; CSS can't, the canvas only draws after mount
       const vis = (1 - smooth((gt - 0.28) / 0.3)) * loadFade; // stars melt away as the sky lights up
       sky.draw(sample(gt), time, scrollY / Math.max(1, innerHeight), ptrX, -ptrY);
       stars.draw(vis, time, scrollY * 0.00006 + time * 0.0012, ptrX, ptrY, dt, scrollY);
@@ -64,12 +62,16 @@
   });
 </script>
 
-<canvas class="layer" style="z-index:0;opacity:0" bind:this={skyEl} aria-hidden="true"></canvas>
+<canvas class="layer" style="z-index:0" bind:this={skyEl} aria-hidden="true"></canvas>
 <canvas class="layer" style="z-index:2" bind:this={starEl} aria-hidden="true"></canvas>
 <div class="layer grain" bind:this={grainEl} aria-hidden="true"></div>
+<div class="layer veil" aria-hidden="true"></div>
 
 <style>
   .layer { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; }
   .grain { z-index: 3; background-image: var(--grain, none); background-size: 160px 160px; mix-blend-mode: overlay; opacity: 0.16; }
-  @media (prefers-reduced-motion: reduce) { .grain { animation: none; } }
+  /* a sheet of the page's dark ground over the sky, held a beat (the canvases draw after mount) then lifted */
+  .veil { z-index: 4; background: var(--ground); animation: lift 1.6s ease-out 0.15s forwards; }
+  @keyframes lift { 0% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
+  @media (prefers-reduced-motion: reduce) { .grain { animation: none; } .veil { display: none; } }
 </style>
