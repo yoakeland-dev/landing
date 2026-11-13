@@ -23,12 +23,12 @@
   const SOON = [5, 6];
   const COPY = [
     null,
-    ["Every chat on every machine, sorted by what needs you", "Agents run on your servers while you are away. A lamp marks the one waiting on you, on the desktop and on your phone."],
+    ["Every chat on every machine, sorted by what needs you", "Agents keep running on your servers while you are away. The one that needs an answer gets a yellow dot, in the desktop app and on your phone."],
     ["The agents you already pay for, in one window", "Claude Code and Codex on your own logins, next to API keys and local models. Switch mid-chat and the next one reads everything above."],
     ["One server, every screen", "Desktop, browser and phone connect straight to the yoakeland you run. No account and no cloud relay."],
     ["Share a server without sharing the machine", "Each person stands as close to the server as you let them. Their devices never stand closer than they do."],
     ["One server’s login, another server’s files", "Run the Claude Code login on your desk against a project on a VPS that has no logins of its own."],
-    ["Long chats fold into chapters", "When a chat fills its context, finished work becomes a chapter. Nothing is summarised away, and the agent can open any chapter again."],
+    ["Long chats fold into chapters", "When a chat fills its context, finished work is saved as a chapter. The agent can open any chapter again."],
     ["And everything you’d expect", ""],
   ];
   const CHANNEL = { stable: "Tested, changes slowly.", early: "Arrives first, sometimes breaks." };
@@ -125,6 +125,8 @@
   const TRACK = $derived(100 + (STEPS - 1) * STEPVH * 100 + (desk ? REVEAL * 100 : 0)); // svh the pinned frame lives for
   let os = $state("linux");
   let assets = $state({});
+  let frameEl = $state();
+  const svh = () => frameEl?.clientHeight || innerHeight; // the small viewport: innerHeight grows and shrinks with the phone's URL bar, which would shift every step and refit every visual
   let zoneEl = $state();
   let sceneEl = $state();
   let copied = $state(false);
@@ -136,7 +138,7 @@
   const others = $derived(Object.keys(OSES).filter((k) => k !== dlOs));
 
   function update() {
-    const vh = innerHeight, vw = innerWidth, y = scrollY;
+    const vh = svh(), vw = innerWidth, y = scrollY;
     if (jumping) landed();
     const run = (STEPS - 1) * STEPVH * vh;
     prog = run ? clamp(y / run, 0, 1) : 0; // a zero-height viewport at hydrate would make this NaN, which never settles
@@ -149,7 +151,7 @@
     reveal = desk ? clamp((y - run) / (REVEAL * vh), 0, 1) : 0;
     // the sky is a window in a frame; at the end its bottom margin grows and uncovers the footer
     const fh = reveal > 0 ? smooth(reveal) * (footH + 12) : 0;
-    rect = !desk ? { t: 12, r: 12, l: 12, b: Math.round(vh * 0.46), rad: 18, fh: 0 } : { t: 12, r: 12, l: 12, b: BASE + fh, rad: 18, fh };
+    rect = !desk ? { t: 12, r: 12, l: 12, b: Math.round(Math.min(vh * 0.62, Math.max(vh * 0.46, 420))), rad: 18, fh: 0 } : { t: 12, r: 12, l: 12, b: BASE + fh, rad: 18, fh };
   }
   let raf = 0;
   const onScroll = () => { if (!raf) raf = requestAnimationFrame(() => { raf = 0; update(); }); };
@@ -230,7 +232,7 @@
   const landed = () => { clearTimeout(jumpEnd); jumpEnd = setTimeout(() => (jumping = false), 150); };
   function goto(i) {
     if (Math.abs(i - step) > 1) { jumping = true; landed(); }
-    scrollTo({ top: i * STEPVH * innerHeight });
+    scrollTo({ top: i * STEPVH * svh() });
   }
 
   // the nav's slider: drag scrubs the page, letting go settles on the nearest section
@@ -239,7 +241,7 @@
   function seek(e) {
     const r = trackEl.getBoundingClientRect();
     const f = clamp((e.clientX - r.left) / r.width, 0, 1);
-    scrollTo({ top: f * (STEPS - 1) * STEPVH * innerHeight, behavior: "instant" });
+    scrollTo({ top: f * (STEPS - 1) * STEPVH * svh(), behavior: "instant" });
     return f;
   }
   let hov = $state(null); // the dot under the pointer, its name shown in the pill
@@ -277,7 +279,7 @@
 
 <svelte:head>
   <title>yoake</title>
-  <meta name="description" content="A calm desktop and phone client for the coding agents you leave running on your own servers." />
+  <meta name="description" content="A desktop and phone app for the coding agents you run on your own servers." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,300..400&display=swap" rel="stylesheet" />
@@ -296,7 +298,7 @@
       </nav>
       <div class="liner">
         <p class="shift">Your agents keep<br />the night shift.</p>
-        <p class="note">Made with care, mostly at night.</p>
+        <p class="note">Made with love.</p>
       </div>
     </div>
     <div class="wm"><Wordmark land={desk ? reveal : 1} /></div>
@@ -313,7 +315,7 @@
 
 <div class="page">
   <div class="track" style:height="{TRACK}svh">
-    <div class="frame" id="top" style="--t:{rect.t}px;--r:{rect.r}px;--b:{rect.b}px;--l:{rect.l}px;--rad:{rect.rad}px;--fh:{rect.fh}px;--sb:{desk ? BASE : rect.b}px">
+    <div class="frame" id="top" bind:this={frameEl} style="--t:{rect.t}px;--r:{rect.r}px;--b:{rect.b}px;--l:{rect.l}px;--rad:{rect.rad}px;--fh:{rect.fh}px;--sb:{desk ? BASE : rect.b}px">
       {#if desk}<div class="footwrap" style:height="{Math.max(0, rect.fh - 12)}px" inert={reveal < 0.5}><div class="footin" bind:clientHeight={footH}>{@render foot()}</div></div>{/if}
       <div class="clip">
         <Sky />
@@ -451,8 +453,8 @@
 
         <div class="panels">
           <section class="panel hero" class:on={step === 0} class:before={step > 0} inert={step !== 0}>
-            <h1><span class="ln">Leave it running,</span><span class="ln dim">Come back at first light<i class="dot" aria-hidden="true"></i></span></h1>
-            <p class="sub">A calm desktop and phone client for the coding agents you leave running on your own servers.</p>
+            <h1><span class="ln">Leave it running.</span><span class="ln dim">Come back at first light<i class="dot" aria-hidden="true"></i></span></h1>
+            <p class="sub">A desktop and phone app for the coding agents you run on your own servers.</p>
             <div class="cta">
               <a class="btn" href="#download" onclick={(e) => { e.preventDefault(); goto(STEPS - 1); }}>Download</a>
               <a class="link" href="#how" onclick={(e) => { e.preventDefault(); goto(1); }}>See how it works</a>
@@ -529,6 +531,7 @@
   :global(body) { margin: 0; background: var(--ground); color: var(--ink); font: 400 1rem/1.5 var(--font-ui); font-synthesis: none; -webkit-font-smoothing: antialiased; overflow-x: clip; }
   :global(*, *::before, *::after) { box-sizing: border-box; }
   :global(a) { color: inherit; }
+  :global(a, button) { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   :global(:focus-visible) { outline: 2px solid #9db3ff; outline-offset: 3px; border-radius: 6px; }
   .pad { padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
 
@@ -787,7 +790,7 @@
   .hl { align-self: stretch; display: grid; align-items: center; width: 7.6em; overflow: hidden; white-space: nowrap; } /* as tall as the pill, so the rolling name is clipped by its edges */
   .hl > :global(span) { grid-area: 1 / 1; }
   .hc { width: 2.4em; text-align: right; color: rgba(255, 244, 234, 0.55); font-variant-numeric: tabular-nums; }
-  .slide { position: relative; flex: 1; align-self: stretch; cursor: grab; touch-action: none; border-radius: 999px; }
+  .slide { position: relative; flex: 1; align-self: stretch; cursor: grab; touch-action: pan-y; border-radius: 999px; }
   .slide.dragging { cursor: grabbing; }
   .slide:focus-visible { outline-offset: -8px; }
   .rail, .fill { position: absolute; left: 0; top: 50%; height: 2px; margin-top: -1px; border-radius: 2px; }
@@ -845,7 +848,7 @@
     .gt span { display: none; }
     .hn { width: 100%; }
     .frame { --rt: 0px; --rb: 0px; }
-    .side { inset: calc(100svh * 0.54) 0 0 0; padding: 14px 20px 14px; clip-path: none; }
+    .side { inset: calc(100svh - var(--b)) 0 0 0; padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px)); clip-path: none; }
     .brandrow { display: none; }
     .panel, .panel.hero, .panel.dl { gap: 10px; align-items: flex-start; justify-content: flex-start; padding: 0; text-align: left; }
     .panel p { text-wrap: wrap; }
@@ -856,6 +859,11 @@
     .side { --ink: #fff4ea; --ink-dim: rgba(255, 244, 234, 0.66); --ink-faint: rgba(255, 244, 234, 0.4); --edge: rgba(255, 244, 234, 0.16); --btn-ink: #141b36; --scrim: transparent; }
     .hn { width: 100%; }
     .foot-top { padding-inline: 16px; }
+    .tracks a { padding: 10px 0; }
+    .also { gap: 0 8px; }
+    .also a, .also .off, .cta .link { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 6px; }
+    .tog button { padding: 11px 16px; }
+    .liner { text-align: left; flex-basis: 100%; gap: 16px; }
   }
   @media (prefers-reduced-motion: reduce) {
     :global(html) { scroll-behavior: auto; }
